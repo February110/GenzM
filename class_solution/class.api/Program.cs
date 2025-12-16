@@ -74,20 +74,21 @@ if (rabbitEnabled)
 {
     try
     {
-        builder.Services.AddSingleton<IConnection>(_ =>
+        var factory = new ConnectionFactory
         {
-            var factory = new ConnectionFactory
-            {
-                HostName = rabbitSection!.HostName,
-                Port = rabbitSection.Port,
-                UserName = rabbitSection.UserName,
-                Password = rabbitSection.Password,
-                AutomaticRecoveryEnabled = true,
-                TopologyRecoveryEnabled = true
-            };
-            return factory.CreateConnection();
-        });
+            HostName = rabbitSection!.HostName,
+            Port = rabbitSection.Port,
+            UserName = rabbitSection.UserName,
+            Password = rabbitSection.Password,
+            AutomaticRecoveryEnabled = true,
+            TopologyRecoveryEnabled = true
+        };
+
+        // Connect once at startup so we can fail fast and fall back cleanly.
+        var rabbitConnection = factory.CreateConnection();
+        builder.Services.AddSingleton<IConnection>(rabbitConnection);
         builder.Services.AddScoped<INotificationDispatcher, RabbitNotificationDispatcher>();
+        Console.WriteLine("✅ RabbitMQ connected, notifications enabled.");
     }
     catch (Exception ex)
     {

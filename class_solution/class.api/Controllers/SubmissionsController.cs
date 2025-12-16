@@ -174,6 +174,7 @@ namespace class_api.Controllers
                 {
                     s.Id,
                     s.UserId,
+                    s.FileKey,
                     StudentName = s.User.FullName,
                     Email = s.User.Email,
                     s.FileSize,
@@ -197,6 +198,7 @@ namespace class_api.Controllers
             {
                 item.Id,
                 item.UserId,
+                item.FileKey,
                 item.StudentName,
                 item.Email,
                 item.FileSize,
@@ -371,4 +373,3 @@ namespace class_api.Controllers
     }
 
 }
-

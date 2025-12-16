@@ -9,12 +9,15 @@ import 'package:path_provider/path_provider.dart';
 import '../../data/models/assignment_model.dart';
 import '../../data/models/announcement_attachment_model.dart';
 import '../../data/models/submission_model.dart';
+import '../../data/models/classroom_detail_model.dart';
 import '../../data/repositories/assignment_repository_impl.dart';
 import '../../data/repositories/submission_repository_impl.dart';
 import '../classrooms/classroom_detail_provider.dart';
 import '../profile/profile_controller.dart';
+import 'assignment_chat_page.dart';
 import 'teacher_grading_page.dart';
 import 'submission_status_provider.dart';
+import 'submissions_by_assignment_provider.dart';
 
 final assignmentDetailProvider =
     FutureProvider.family<AssignmentModel, String>((ref, id) async {
@@ -70,11 +73,21 @@ class AssignmentDetailPage extends ConsumerWidget {
             ) ==
             true;
         if (isTeacher) {
-          return TeacherGradingPage(
-            assignment: assignment,
-            submissions: submissionsAsync.valueOrNull ?? const [],
-            classroomName: classDetailAsync?.valueOrNull?.name,
-            members: classDetailAsync?.valueOrNull?.members ?? const [],
+          final subsByAssignment =
+              ref.watch(submissionsByAssignmentProvider(assignment.id));
+          return subsByAssignment.when(
+            loading: () => const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ),
+            error: (err, _) => Scaffold(
+              body: Center(child: Text(err.toString())),
+            ),
+            data: (subs) => TeacherGradingPage(
+              assignment: assignment,
+              submissions: subs,
+              classroomName: classDetailAsync?.valueOrNull?.name,
+              members: classDetailAsync?.valueOrNull?.members ?? const [],
+            ),
           );
         }
 
@@ -117,6 +130,7 @@ class AssignmentDetailPage extends ConsumerWidget {
                 assignment,
                 submission,
                 isTeacher: isTeacher,
+                classroomDetail: classDetailAsync?.valueOrNull,
               ),
             ],
           ),
@@ -563,9 +577,20 @@ class AssignmentDetailPage extends ConsumerWidget {
     AssignmentModel assignment,
     SubmissionModel? submission, {
     required bool isTeacher,
+    ClassroomDetailModel? classroomDetail,
   }) {
     if (isTeacher) return const SizedBox.shrink();
     final hasSubmission = submission != null;
+    final profile = ref.watch(profileControllerProvider).user;
+    String? teacherName;
+    if (classroomDetail != null) {
+      for (final m in classroomDetail.members) {
+        if ((m.role ?? '').toLowerCase().contains('teacher')) {
+          teacherName = m.fullName;
+          break;
+        }
+      }
+    }
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       decoration: const BoxDecoration(
@@ -590,8 +615,17 @@ class AssignmentDetailPage extends ConsumerWidget {
             child: IconButton(
               icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF2563EB)),
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đi tới chat với giáo viên')),
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => AssignmentChatPage(
+                      assignmentId: assignment.id,
+                      assignmentTitle: assignment.title,
+                      isTeacher: false,
+                      studentId: profile?.id,
+                      studentName: profile?.name,
+                      teacherName: teacherName,
+                    ),
+                  ),
                 );
               },
             ),

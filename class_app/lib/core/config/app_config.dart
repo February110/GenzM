@@ -9,10 +9,10 @@ class AppConfig {
 
     // Android emulator cần 10.0.2.2 để trỏ về host.
     if (!kIsWeb && Platform.isAndroid) {
-      return 'http://10.0.2.2:5081/api';
+      return 'http://10.0.2.2:8080/api';
     }
     // Web/iOS/macOS/Windows dùng localhost.
-    return 'http://localhost:5081/api';
+    return 'http://localhost:8080/api';
   }
 
   /// Origin (không kèm `/api`) để load file tĩnh như banner, avatar.

@@ -7,4 +7,5 @@ abstract class SubmissionRepository {
   Future<String> upload(String assignmentId, PlatformFile file);
   Future<List<SubmissionModel>> mySubmissions();
   Future<List<SubmissionWithGradeModel>> listByAssignment(String assignmentId);
+  Future<String> downloadUrl(String submissionId);
 }

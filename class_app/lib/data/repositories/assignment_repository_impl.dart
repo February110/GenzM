@@ -5,6 +5,7 @@ import '../../core/services/logger_service.dart';
 import '../datasources/assignment_remote_datasource.dart';
 import '../models/assignment_model.dart';
 import '../models/announcement_attachment_model.dart';
+import '../models/assignment_comment_model.dart';
 import '../../features/assignments/assignment_repository.dart';
 
 class AssignmentRepositoryImpl implements AssignmentRepository {
@@ -85,6 +86,39 @@ class AssignmentRepositoryImpl implements AssignmentRepository {
       instructions: instructions,
       dueAt: dueAt,
       maxPoints: maxPoints,
+    );
+  }
+
+  @override
+  Future<List<AssignmentCommentModel>> listComments(
+    String assignmentId, {
+    String? studentId,
+  }) async {
+    try {
+      return await _remote.listComments(
+        assignmentId,
+        studentId: studentId,
+      );
+    } catch (error, stackTrace) {
+      _logger.log(
+        'list assignment comments failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
+
+  @override
+  Future<AssignmentCommentModel> addComment({
+    required String assignmentId,
+    required String content,
+    String? studentId,
+  }) {
+    return _remote.addComment(
+      assignmentId: assignmentId,
+      content: content,
+      studentId: studentId,
     );
   }
 }

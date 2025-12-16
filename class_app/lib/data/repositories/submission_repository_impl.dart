@@ -47,6 +47,20 @@ class SubmissionRepositoryImpl implements SubmissionRepository {
       rethrow;
     }
   }
+
+  @override
+  Future<String> downloadUrl(String submissionId) async {
+    try {
+      return await _remote.downloadUrl(submissionId);
+    } catch (error, stackTrace) {
+      _logger.log(
+        'get submission download url failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
 }
 
 final submissionRepositoryProvider = Provider<SubmissionRepository>((ref) {

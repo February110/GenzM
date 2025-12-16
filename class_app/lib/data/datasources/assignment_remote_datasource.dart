@@ -6,6 +6,7 @@ import '../../core/exceptions/app_exception.dart';
 import '../../core/services/api_client.dart';
 import '../models/assignment_model.dart';
 import '../models/announcement_attachment_model.dart';
+import '../models/assignment_comment_model.dart';
 
 class AssignmentRemoteDataSource {
   AssignmentRemoteDataSource(this._client);
@@ -124,6 +125,54 @@ class AssignmentRemoteDataSource {
   Future<void> delete(String id) async {
     try {
       await _client.delete('/assignments/$id');
+    } on DioException catch (error) {
+      throw AppException(
+        _extractMessage(error),
+        code: error.response?.statusCode?.toString(),
+      );
+    }
+  }
+
+  Future<List<AssignmentCommentModel>> listComments(
+    String assignmentId, {
+    String? studentId,
+  }) async {
+    try {
+      final response = await _client.get<List<dynamic>>(
+        '/comments/assignment/$assignmentId',
+        queryParameters: {
+          if (studentId != null) 'studentId': studentId,
+        },
+      );
+      final data = response.data ?? <dynamic>[];
+      return data
+          .whereType<Map<String, dynamic>>()
+          .map(AssignmentCommentModel.fromJson)
+          .toList();
+    } on DioException catch (error) {
+      throw AppException(
+        _extractMessage(error),
+        code: error.response?.statusCode?.toString(),
+      );
+    }
+  }
+
+  Future<AssignmentCommentModel> addComment({
+    required String assignmentId,
+    required String content,
+    String? studentId,
+  }) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/comments',
+        data: {
+          'assignmentId': assignmentId,
+          'content': content,
+          if (studentId != null) 'studentId': studentId,
+        },
+      );
+      final data = response.data ?? <String, dynamic>{};
+      return AssignmentCommentModel.fromJson(data);
     } on DioException catch (error) {
       throw AppException(
         _extractMessage(error),

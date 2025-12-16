@@ -3,6 +3,7 @@ class SubmissionWithGradeModel {
     required this.id,
     required this.assignmentId,
     required this.userId,
+    this.fileKey,
     this.studentName,
     this.email,
     this.fileSize,
@@ -16,6 +17,7 @@ class SubmissionWithGradeModel {
   final String id;
   final String assignmentId;
   final String userId;
+  final String? fileKey;
   final String? studentName;
   final String? email;
   final int? fileSize;
@@ -35,6 +37,7 @@ class SubmissionWithGradeModel {
       id: json['id']?.toString() ?? '',
       assignmentId: json['assignmentId']?.toString() ?? '',
       userId: json['userId']?.toString() ?? '',
+      fileKey: json['fileKey'] as String?,
       studentName: json['studentName'] as String?,
       email: json['email'] as String?,
       fileSize: (json['fileSize'] as num?)?.toInt(),

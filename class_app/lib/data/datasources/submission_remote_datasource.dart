@@ -79,6 +79,25 @@ class SubmissionRemoteDataSource {
       );
     }
   }
+
+  Future<String> downloadUrl(String submissionId) async {
+    try {
+      final res = await _client.get<Map<String, dynamic>>(
+        '/submissions/$submissionId/download',
+      );
+      final data = res.data ?? <String, dynamic>{};
+      final url = data['downloadUrl'] as String?;
+      if (url == null || url.isEmpty) {
+        throw AppException('Không lấy được liên kết tải.');
+      }
+      return url;
+    } on DioException catch (error) {
+      throw AppException(
+        _extractMessage(error),
+        code: error.response?.statusCode?.toString(),
+      );
+    }
+  }
 }
 
 final submissionRemoteDataSourceProvider = Provider<SubmissionRemoteDataSource>(

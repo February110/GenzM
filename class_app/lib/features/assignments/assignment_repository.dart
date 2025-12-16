@@ -1,5 +1,6 @@
 import '../../data/models/assignment_model.dart';
 import '../../data/models/announcement_attachment_model.dart';
+import '../../data/models/assignment_comment_model.dart';
 import 'package:file_picker/file_picker.dart';
 
 abstract class AssignmentRepository {
@@ -21,5 +22,14 @@ abstract class AssignmentRepository {
     String? instructions,
     DateTime? dueAt,
     int? maxPoints,
+  });
+  Future<List<AssignmentCommentModel>> listComments(
+    String assignmentId, {
+    String? studentId,
+  });
+  Future<AssignmentCommentModel> addComment({
+    required String assignmentId,
+    required String content,
+    String? studentId,
   });
 }
