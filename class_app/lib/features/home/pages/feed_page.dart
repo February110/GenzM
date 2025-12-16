@@ -1,0 +1,545 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+import '../../../core/config/app_config.dart';
+import '../../../data/models/classroom_model.dart';
+import '../../classrooms/classroom_controller.dart';
+import '../../classrooms/classrooms_page.dart'
+    show ClassroomDetailPage, ClassroomsPage;
+import '../../profile/profile_controller.dart';
+import '../../profile/profile_page.dart';
+
+class FeedPage extends ConsumerStatefulWidget {
+  const FeedPage({super.key});
+
+  @override
+  ConsumerState<FeedPage> createState() => _FeedPageState();
+}
+
+class _FeedPageState extends ConsumerState<FeedPage> {
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.microtask(
+      () => ref.read(classroomControllerProvider.notifier).fetchClassrooms(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(classroomControllerProvider);
+    final profile = ref.watch(profileControllerProvider);
+    final classes = state.items;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FB),
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: const Color(0xFF2563EB),
+          onRefresh: () =>
+              ref.read(classroomControllerProvider.notifier).fetchClassrooms(),
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: _HeaderCard(
+                    isLoading: state.isLoading || profile.isLoading,
+                    name: profile.user?.name ?? 'bạn',
+                    avatarUrl: profile.user?.avatar,
+                    onAvatarTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ProfilePage()),
+                      );
+                    },
+                    onBellTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Tính năng thông báo đang được cập nhật.',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _StatsRow(totalClasses: classes.length),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Lớp học của tôi',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ClassroomsPage(),
+                            ),
+                          );
+                        },
+                        child: const Text('Xem tất cả'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 210,
+                  child: state.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : classes.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Chưa có lớp nào, hãy tham gia hoặc tạo lớp.',
+                            style: TextStyle(color: Color(0xFF6B7280)),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: classes.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (_, index) {
+                            final cls = classes[index];
+                            return _ClassCardHorizontal(
+                              cls: cls,
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ClassroomDetailPage(
+                                      classroomId: cls.id,
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  child: const Text(
+                    'Nhiệm vụ sắp tới',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                ),
+              ),
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => const _TaskPlaceholder(),
+                  childCount: 1,
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 90)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderCard extends StatelessWidget {
+  const _HeaderCard({
+    required this.isLoading,
+    required this.name,
+    this.avatarUrl,
+    required this.onAvatarTap,
+    required this.onBellTap,
+  });
+
+  final bool isLoading;
+  final String name;
+  final String? avatarUrl;
+  final VoidCallback onAvatarTap;
+  final VoidCallback onBellTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: onAvatarTap,
+            child: _AvatarCircle(name: name, avatarUrl: avatarUrl, radius: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Chào buổi sáng, $name!',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: Color(0xFF111827),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  isLoading
+                      ? 'Đang tải lớp học...'
+                      : 'Chúc bạn một ngày học tập hiệu quả',
+                  style: const TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: onBellTap,
+            icon: const Icon(
+              Icons.notifications_none,
+              color: Color(0xFF111827),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AvatarCircle extends StatelessWidget {
+  const _AvatarCircle({required this.name, required this.avatarUrl, this.radius = 24});
+
+  final String name;
+  final String? avatarUrl;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolved = AppConfig.resolveAssetUrl(avatarUrl ?? '');
+    final isSvg = AppConfig.isSvgUrl(resolved);
+    final hasAvatar = resolved.isNotEmpty;
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : '👤';
+
+    if (hasAvatar && isSvg) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: const Color(0xFFE0ECFF),
+        child: ClipOval(
+          child: SvgPicture.network(
+            resolved,
+            fit: BoxFit.cover,
+            placeholderBuilder: (_) =>
+                const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: const Color(0xFFE0ECFF),
+      backgroundImage: hasAvatar ? NetworkImage(resolved) : null,
+      child: hasAvatar
+          ? null
+          : Text(
+              initial,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
+            ),
+    );
+  }
+}
+
+class _StatsRow extends StatelessWidget {
+  const _StatsRow({required this.totalClasses});
+
+  final int totalClasses;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _StatCard(
+          label: 'Lớp đang tham gia',
+          value: '$totalClasses',
+          icon: Icons.class_outlined,
+          color: const Color(0xFF2563EB),
+        ),
+        const SizedBox(width: 12),
+        const _StatCard(
+          label: 'Bài tập đã nộp',
+          value: '—',
+          icon: Icons.assignment_turned_in_outlined,
+          color: Color(0xFF10B981),
+        ),
+        const SizedBox(width: 12),
+        const _StatCard(
+          label: 'Điểm trung bình',
+          value: '—',
+          icon: Icons.star_border,
+          color: Color(0xFFF59E0B),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 18),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClassCardHorizontal extends StatelessWidget {
+  const _ClassCardHorizontal({required this.cls, required this.onTap});
+
+  final ClassroomModel cls;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 220,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _BannerThumb(bannerUrl: cls.bannerUrl),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+              child: Text(
+                cls.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Text(
+                cls.section ?? cls.description ?? 'Giáo viên: —',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BannerThumb extends StatelessWidget {
+  const _BannerThumb({this.bannerUrl});
+
+  final String? bannerUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = AppConfig.resolveAssetUrl(bannerUrl);
+    final isSvg = AppConfig.isSvgUrl(bannerUrl ?? url);
+    final hasBanner = url.isNotEmpty;
+    const fallbackAsset = 'assets/images/banners/banner-1.svg';
+
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        child: Stack(
+          children: [
+            Positioned.fill(child: Container(color: const Color(0xFFEEF2FF))),
+            if (hasBanner && !isSvg)
+              Positioned.fill(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      SvgPicture.asset(fallbackAsset, fit: BoxFit.cover),
+                ),
+              ),
+            if (hasBanner && isSvg)
+              Positioned.fill(
+                child: SvgPicture.network(
+                  url,
+                  fit: BoxFit.cover,
+                  placeholderBuilder: (_) => const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFF2563EB),
+                      ),
+                    ),
+                  ),
+                  semanticsLabel: 'banner',
+                ),
+              ),
+            if (!hasBanner)
+              Positioned.fill(
+                child: SvgPicture.asset(fallbackAsset, fit: BoxFit.cover),
+              ),
+            Container(color: Colors.white.withValues(alpha: 0.04)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TaskPlaceholder extends StatelessWidget {
+  const _TaskPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.hourglass_empty, color: Color(0xFF2563EB)),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Chưa có nhiệm vụ sắp tới nào.',
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}

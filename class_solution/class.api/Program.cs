@@ -1,0 +1,211 @@
+using class_api.Application;
+using class_api.Infrastructure.Data;
+using class_api.Filters;
+using class_api.Services;
+using class_api.Hubs;
+using class_api.Options;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using class_api.Json;
+using StackExchange.Redis;
+using RabbitMQ.Client;
+using class_api.Infrastructure;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddApplicationServices();
+builder.Services.AddInfrastructureServices(builder.Configuration);
+
+var redisConfiguration = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["Redis:Configuration"];
+IConnectionMultiplexer? redisMux = null;
+if (!string.IsNullOrWhiteSpace(redisConfiguration))
+{
+    try
+    {
+        var redisOptions = ConfigurationOptions.Parse(redisConfiguration);
+        redisOptions.AbortOnConnectFail = false; // không ném lỗi ngay, cho phép retry nền
+        redisMux = ConnectionMultiplexer.Connect(redisOptions);
+
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisConfiguration;
+            options.InstanceName = builder.Configuration["Redis:InstanceName"] ?? "class:";
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ Redis connection failed, fallback to in-memory cache: {ex.Message}");
+    }
+}
+
+if (redisMux != null)
+{
+    builder.Services.AddSingleton<IConnectionMultiplexer>(redisMux);
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, CurrentUser>();
+builder.Services.AddHttpClient();
+builder.Services.AddControllers().AddJsonOptions(o =>
+{
+    o.JsonSerializerOptions.Converters.Add(new DateTimeUtcConverter());
+    o.JsonSerializerOptions.Converters.Add(new NullableDateTimeUtcConverter());
+});
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+var jwtKeyConfig = builder.Configuration["Jwt:Key"] ?? string.Empty;
+var key = Encoding.UTF8.GetBytes(jwtKeyConfig);
+
+builder.Services.AddSignalR();
+builder.Services.AddHttpClient();
+builder.Services.AddSingleton<IActivityStream, ActivityStream>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMQ"));
+var rabbitSection = builder.Configuration.GetSection("RabbitMQ").Get<RabbitMqOptions>();
+
+var rabbitEnabled = rabbitSection is not null && rabbitSection.Enabled;
+if (rabbitEnabled)
+{
+    try
+    {
+        builder.Services.AddSingleton<IConnection>(_ =>
+        {
+            var factory = new ConnectionFactory
+            {
+                HostName = rabbitSection!.HostName,
+                Port = rabbitSection.Port,
+                UserName = rabbitSection.UserName,
+                Password = rabbitSection.Password,
+                AutomaticRecoveryEnabled = true,
+                TopologyRecoveryEnabled = true
+            };
+            return factory.CreateConnection();
+        });
+        builder.Services.AddScoped<INotificationDispatcher, RabbitNotificationDispatcher>();
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"⚠️ RabbitMQ unavailable, notifications will be disabled. {ex.Message}");
+        builder.Services.AddSingleton<INotificationDispatcher, NullNotificationDispatcher>();
+    }
+}
+else
+{
+    Console.WriteLine("⚠️ RabbitMQ disabled or not configured. Notifications will be no-op.");
+    builder.Services.AddSingleton<INotificationDispatcher, NullNotificationDispatcher>();
+}
+builder.Services.Configure<WorkerAuthOptions>(builder.Configuration.GetSection("WorkerAuth"));
+
+builder.Services.AddAuthentication("Bearer")
+   .AddJwtBearer(opt =>
+   {
+       var key = Encoding.UTF8.GetBytes(jwtKeyConfig);
+       opt.TokenValidationParameters = new TokenValidationParameters
+       {
+           ValidateIssuer = true,
+           ValidateAudience = true,
+           ValidateLifetime = true,
+           ValidateIssuerSigningKey = true,
+           ValidIssuer = builder.Configuration["Jwt:Issuer"],
+           ValidAudience = builder.Configuration["Jwt:Audience"],
+           IssuerSigningKey = new SymmetricSecurityKey(key)
+       };
+
+       opt.Events = new JwtBearerEvents
+       {
+           OnAuthenticationFailed = ctx =>
+           {
+               Console.WriteLine($"❌ JWT invalid: {ctx.Exception.Message}");
+               return Task.CompletedTask;
+           },
+           OnTokenValidated = ctx =>
+           {
+               Console.WriteLine("✅ JWT validated successfully");
+               return Task.CompletedTask;
+           },
+           OnMessageReceived = ctx =>
+           {
+               var accessToken = ctx.Request.Query["access_token"];
+               var path = ctx.HttpContext.Request.Path;
+               if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+               {
+                   ctx.Token = accessToken;
+               }
+               return Task.CompletedTask;
+           }
+       };
+   });
+
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireClaim("systemRole", "Admin"));
+});
+
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ApiExceptionFilter>();
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowApp",
+        b => b
+            .SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin)) return false;
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    // Cho phép mọi cổng trên localhost/127.0.0.1/10.0.2.2 (flutter web dev)
+                    return uri.Host == "localhost" || uri.Host == "127.0.0.1" || uri.Host == "10.0.2.2";
+                }
+                return false;
+            })
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
+});
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+    
+    if (builder.Environment.IsEnvironment("Docker"))
+    {
+        builder.Configuration.AddJsonFile("appsettings.Docker.json", optional: true, reloadOnChange: true);
+    }
+
+builder.Configuration.AddEnvironmentVariables();
+
+var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    DbSeeder.SeedAdmin(db);
+}
+app.UseSwagger();
+app.UseSwaggerUI();
+app.UseStaticFiles();
+app.UseCors("AllowApp");
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.MapHub<ClassroomHub>("/hubs/classroom");
+app.MapHub<MeetingHub>("/hubs/meeting");
+app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<ActivityHub>("/hubs/activity");
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
+
+app.Run();

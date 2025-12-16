@@ -1,0 +1,43 @@
+# Node/OS/IDE
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# Flutter / Dart
+.dart_tool/
+.packages
+pubspec.lock
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.flutter-plugins-runtime-dependencies
+**/android/.gradle/
+**/android/local.properties
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/web/.dart_tool/
+
+# Coverage
+coverage/
+
+# .NET / C#
+**/bin/
+**/obj/
+**/TestResults/
+*.user
+*.userprefs
+*.suo
+*.vs/
+
+# Package restore artifacts
+**/packages/
+**/project.lock.json
+
+# Terraform/Cloud artifacts (if any)
+*.tfstate
+*.tfstate.backup
+.terraform/
