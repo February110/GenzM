@@ -5,6 +5,7 @@ using class_api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using class_api.Application.Interfaces;
 
 namespace class_api.Controllers
 {
@@ -16,12 +17,14 @@ namespace class_api.Controllers
         private readonly ApplicationDbContext _db;
         private readonly ICurrentUser _me;
         private readonly IActivityStream _activityStream;
+        private readonly INotificationService _notifications;
 
-        public GradesController(ApplicationDbContext db, ICurrentUser me, IActivityStream activityStream)
+        public GradesController(ApplicationDbContext db, ICurrentUser me, IActivityStream activityStream, INotificationService notifications)
         {
             _db = db;
             _me = me;
             _activityStream = activityStream;
+            _notifications = notifications;
         }
 
         [HttpPut("{submissionId:guid}")]
@@ -81,6 +84,24 @@ namespace class_api.Controllers
                 $"chấm {studentName} {dto.Grade} điểm",
                 className,
                 DateTime.UtcNow));
+
+            if (sub.UserId != Guid.Empty && sub.UserId != _me.UserId)
+            {
+                await _notifications.NotifyUsersAsync(
+                    new[] { sub.UserId },
+                    "Bài tập đã được chấm",
+                    $"{sub.Assignment?.Title ?? "Bài tập"}: {dto.Grade} điểm",
+                    "grade",
+                    sub.Assignment?.ClassroomId,
+                    sub.AssignmentId,
+                    new
+                    {
+                        actorName = member.User?.FullName ?? "Giáo viên",
+                        actorAvatar = member.User?.Avatar
+                    },
+                    ct);
+            }
+
             return Ok(new
             {
                 message = "Graded successfully",
@@ -91,4 +112,3 @@ namespace class_api.Controllers
         }
     }
 }
-

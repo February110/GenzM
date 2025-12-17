@@ -1,14 +1,11 @@
 using class_api.Infrastructure.Data;
 using class_api.Domain;
 using class_api.Application.Dtos;
-using class_api.Services;
+using class_api.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Options;
 using System.Globalization;
-using System.Text.Json;
 
 namespace class_api.Controllers
 {
@@ -18,207 +15,144 @@ namespace class_api.Controllers
     {
         private readonly ApplicationDbContext _db;
         private readonly IActivityStream _activityStream;
-        private readonly INotificationDispatcher _dispatcher;
-        private readonly IDistributedCache _cache;
-        private readonly JsonSerializerOptions _jsonOptions;
-        private readonly TimeSpan _overviewCacheDuration;
-        private readonly bool _shouldCacheOverview;
-        private const string OverviewCacheKey = "admin:overview";
+        private readonly INotificationService _notifications;
 
         public AdminController(
             ApplicationDbContext db,
             IActivityStream activityStream,
-            INotificationDispatcher dispatcher,
-            IDistributedCache cache,
-            IConfiguration configuration,
-            IOptions<JsonOptions> jsonOptionsAccessor)
+            INotificationService notifications)
         {
             _db = db;
             _activityStream = activityStream;
-            _dispatcher = dispatcher;
-            _cache = cache;
-            _jsonOptions = jsonOptionsAccessor.Value.JsonSerializerOptions;
-
-            var configuredSeconds = configuration.GetValue<int?>("Redis:OverviewCacheSeconds");
-            if (configuredSeconds.HasValue && configuredSeconds.Value <= 0)
-            {
-                _shouldCacheOverview = false;
-                _overviewCacheDuration = TimeSpan.Zero;
-            }
-            else
-            {
-                _shouldCacheOverview = true;
-                _overviewCacheDuration = TimeSpan.FromSeconds(configuredSeconds ?? 60);
-            }
+            _notifications = notifications;
         }
 
         [Authorize(Policy = "AdminOnly")]
         [HttpGet("overview")]
         public async Task<IActionResult> GetOverview(CancellationToken ct)
         {
-            OverviewCachePayload? cachedPayload = null;
-            if (_shouldCacheOverview)
+            var now = DateTime.UtcNow;
+            var dayStart = now.Date;
+            var weekStart = now.AddDays(-7);
+            var currentMonthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var previousMonthStart = currentMonthStart.AddMonths(-1);
+            var sixMonthsAgo = currentMonthStart.AddMonths(-5);
+            var heatmapStart = dayStart.AddDays(-6);
+            var viCulture = new CultureInfo("vi-VN");
+
+            var users = await _db.Users.CountAsync(ct);
+            var classes = await _db.Classrooms.CountAsync(ct);
+            var assignmentsCount = await _db.Assignments.CountAsync(ct);
+            var submissionsCount = await _db.Submissions.CountAsync(ct);
+            var dailyVisits = await _db.Users.CountAsync(u => u.LastLoginAt >= dayStart, ct);
+            var weeklyVisits = await _db.Users.CountAsync(u => u.LastLoginAt >= weekStart, ct);
+
+            var currentEnrollments = await _db.Enrollments.CountAsync(e => e.JoinedAt >= currentMonthStart, ct);
+            var previousEnrollments = await _db.Enrollments.CountAsync(e => e.JoinedAt >= previousMonthStart && e.JoinedAt < currentMonthStart, ct);
+            var growthRate = previousEnrollments == 0
+                ? (currentEnrollments > 0 ? 100d : 0d)
+                : Math.Round(((double)(currentEnrollments - previousEnrollments) / previousEnrollments) * 100d, 1);
+
+            var monthlySubmissionsRaw = await _db.Submissions
+                .Where(s => s.SubmittedAt >= sixMonthsAgo)
+                .GroupBy(s => new { s.SubmittedAt.Year, s.SubmittedAt.Month })
+                .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
+                .ToListAsync(ct);
+            var submissionsPerMonth = Enumerable.Range(0, 6)
+                .Select(i => sixMonthsAgo.AddMonths(i))
+                .Select(d => new LabelValue(d.ToString("MMM", viCulture), monthlySubmissionsRaw.FirstOrDefault(m => m.Year == d.Year && m.Month == d.Month)?.Count ?? 0))
+                .ToList();
+
+            var weekAnchor = StartOfWeek(now);
+            var eightWeeksAgo = weekAnchor.AddDays(-7 * 7);
+            var weeklyLoginDates = await _db.Users
+                .Where(u => u.LastLoginAt >= eightWeeksAgo && u.LastLoginAt != null)
+                .Select(u => u.LastLoginAt)
+                .ToListAsync(ct);
+            var weeklyLoginMap = weeklyLoginDates
+                .Where(d => d.HasValue)
+                .Select(d => d!.Value)
+                .GroupBy(d => StartOfWeek(d))
+                .ToDictionary(g => g.Key, g => g.Count());
+            var loginsPerWeek = Enumerable.Range(0, 8)
+                .Select(i => weekAnchor.AddDays(-7 * (7 - i)))
+                .OrderBy(d => d)
+                .Select(start => new LabelValue($"{start:dd/MM}", weeklyLoginMap.TryGetValue(start, out var count) ? count : 0))
+                .ToList();
+
+            var teacherCount = await _db.Enrollments
+                .Where(e => e.Role == "Teacher")
+                .Select(e => e.UserId)
+                .Distinct()
+                .CountAsync(ct);
+            var studentCount = await _db.Enrollments
+                .Where(e => e.Role == "Student")
+                .Select(e => e.UserId)
+                .Distinct()
+                .CountAsync(ct);
+            var roleDistribution = new List<LabelValue>
             {
-                var cached = await _cache.GetStringAsync(OverviewCacheKey, ct);
-                if (!string.IsNullOrEmpty(cached))
-                {
-                    try
-                    {
-                        cachedPayload = JsonSerializer.Deserialize<OverviewCachePayload>(cached, _jsonOptions);
-                    }
-                    catch
-                    {
-                        cachedPayload = null;
-                    }
-                }
-            }
+                new("Giáo viên", teacherCount),
+                new("Học viên", studentCount)
+            };
 
-            OverviewTotals totals;
-            OverviewCharts charts;
-            OverviewQuality quality;
-
-            if (cachedPayload != null)
+            var submissionHours = await _db.Submissions
+                .Where(s => s.SubmittedAt >= heatmapStart)
+                .Select(s => s.SubmittedAt)
+                .ToListAsync(ct);
+            var hourMap = submissionHours
+                .GroupBy(d => $"{d.Date:yyyy-MM-dd}-{d.Hour}")
+                .ToDictionary(g => g.Key, g => g.Count());
+            var heatmapSlots = new[]
             {
-                totals = cachedPayload.Totals;
-                charts = cachedPayload.Charts;
-                quality = cachedPayload.Quality;
-            }
-            else
+                new { label = "0-3h", start = 0, end = 3 },
+                new { label = "4-7h", start = 4, end = 7 },
+                new { label = "8-11h", start = 8, end = 11 },
+                new { label = "12-15h", start = 12, end = 15 },
+                new { label = "16-19h", start = 16, end = 19 },
+                new { label = "20-23h", start = 20, end = 23 }
+            };
+            var activityHeatmap = new List<HeatmapCell>();
+            for (var i = 0; i < 7; i++)
             {
-                var now = DateTime.UtcNow;
-                var dayStart = now.Date;
-                var weekStart = now.AddDays(-7);
-                var currentMonthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-                var previousMonthStart = currentMonthStart.AddMonths(-1);
-                var sixMonthsAgo = currentMonthStart.AddMonths(-5);
-                var heatmapStart = dayStart.AddDays(-6);
-                var viCulture = new CultureInfo("vi-VN");
-
-                var users = await _db.Users.CountAsync(ct);
-                var classes = await _db.Classrooms.CountAsync(ct);
-                var assignmentsCount = await _db.Assignments.CountAsync(ct);
-                var submissionsCount = await _db.Submissions.CountAsync(ct);
-                var dailyVisits = await _db.Users.CountAsync(u => u.LastLoginAt >= dayStart, ct);
-                var weeklyVisits = await _db.Users.CountAsync(u => u.LastLoginAt >= weekStart, ct);
-
-                var currentEnrollments = await _db.Enrollments.CountAsync(e => e.JoinedAt >= currentMonthStart, ct);
-                var previousEnrollments = await _db.Enrollments.CountAsync(e => e.JoinedAt >= previousMonthStart && e.JoinedAt < currentMonthStart, ct);
-                var growthRate = previousEnrollments == 0
-                    ? (currentEnrollments > 0 ? 100d : 0d)
-                    : Math.Round(((double)(currentEnrollments - previousEnrollments) / previousEnrollments) * 100d, 1);
-
-                var monthlySubmissionsRaw = await _db.Submissions
-                    .Where(s => s.SubmittedAt >= sixMonthsAgo)
-                    .GroupBy(s => new { s.SubmittedAt.Year, s.SubmittedAt.Month })
-                    .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() })
-                    .ToListAsync(ct);
-                var submissionsPerMonth = Enumerable.Range(0, 6)
-                    .Select(i => sixMonthsAgo.AddMonths(i))
-                    .Select(d => new LabelValue(d.ToString("MMM", viCulture), monthlySubmissionsRaw.FirstOrDefault(m => m.Year == d.Year && m.Month == d.Month)?.Count ?? 0))
-                    .ToList();
-
-                var weekAnchor = StartOfWeek(now);
-                var eightWeeksAgo = weekAnchor.AddDays(-7 * 7);
-                var weeklyLoginDates = await _db.Users
-                    .Where(u => u.LastLoginAt >= eightWeeksAgo && u.LastLoginAt != null)
-                    .Select(u => u.LastLoginAt)
-                    .ToListAsync(ct);
-                var weeklyLoginMap = weeklyLoginDates
-                    .Where(d => d.HasValue)
-                    .Select(d => d!.Value)
-                    .GroupBy(d => StartOfWeek(d))
-                    .ToDictionary(g => g.Key, g => g.Count());
-                var loginsPerWeek = Enumerable.Range(0, 8)
-                    .Select(i => weekAnchor.AddDays(-7 * (7 - i)))
-                    .OrderBy(d => d)
-                    .Select(start => new LabelValue($"{start:dd/MM}", weeklyLoginMap.TryGetValue(start, out var count) ? count : 0))
-                    .ToList();
-
-                var teacherCount = await _db.Enrollments
-                    .Where(e => e.Role == "Teacher")
-                    .Select(e => e.UserId)
-                    .Distinct()
-                    .CountAsync(ct);
-                var studentCount = await _db.Enrollments
-                    .Where(e => e.Role == "Student")
-                    .Select(e => e.UserId)
-                    .Distinct()
-                    .CountAsync(ct);
-                var roleDistribution = new List<LabelValue>
+                var day = heatmapStart.AddDays(i);
+                foreach (var slot in heatmapSlots)
                 {
-                    new("Giáo viên", teacherCount),
-                    new("Học viên", studentCount)
-                };
-
-                var submissionHours = await _db.Submissions
-                    .Where(s => s.SubmittedAt >= heatmapStart)
-                    .Select(s => s.SubmittedAt)
-                    .ToListAsync(ct);
-                var hourMap = submissionHours
-                    .GroupBy(d => $"{d.Date:yyyy-MM-dd}-{d.Hour}")
-                    .ToDictionary(g => g.Key, g => g.Count());
-                var heatmapSlots = new[]
-                {
-                    new { label = "0-3h", start = 0, end = 3 },
-                    new { label = "4-7h", start = 4, end = 7 },
-                    new { label = "8-11h", start = 8, end = 11 },
-                    new { label = "12-15h", start = 12, end = 15 },
-                    new { label = "16-19h", start = 16, end = 19 },
-                    new { label = "20-23h", start = 20, end = 23 }
-                };
-                var activityHeatmap = new List<HeatmapCell>();
-                for (var i = 0; i < 7; i++)
-                {
-                    var day = heatmapStart.AddDays(i);
-                    foreach (var slot in heatmapSlots)
+                    var total = 0;
+                    for (var hour = slot.start; hour <= slot.end; hour++)
                     {
-                        var total = 0;
-                        for (var hour = slot.start; hour <= slot.end; hour++)
+                        var key = $"{day:yyyy-MM-dd}-{hour}";
+                        if (hourMap.TryGetValue(key, out var count))
                         {
-                            var key = $"{day:yyyy-MM-dd}-{hour}";
-                            if (hourMap.TryGetValue(key, out var count))
-                            {
-                                total += count;
-                            }
+                            total += count;
                         }
-                        activityHeatmap.Add(new HeatmapCell(day.ToString("ddd", viCulture), slot.label, total));
                     }
-                }
-
-                var gradeCount = await _db.Grades.CountAsync(ct);
-                double averageScore = 0;
-                if (gradeCount > 0)
-                {
-                    averageScore = Math.Round(await _db.Grades.AverageAsync(g => g.Score, ct), 1);
-                }
-                var completionRate = assignmentsCount == 0 ? 0 : Math.Round((double)submissionsCount / assignmentsCount * 100d, 1);
-                var overdueAssignments = await _db.Assignments.CountAsync(a => a.DueAt != null && a.DueAt < now && !a.Submissions.Any(), ct);
-                var sevenDaysAgo = now.AddDays(-7);
-                var topClassRaw = await _db.Submissions
-                    .Where(s => s.SubmittedAt >= sevenDaysAgo)
-                    .GroupBy(s => new { s.Assignment!.ClassroomId, s.Assignment.Classroom!.Name })
-                    .Select(g => new { g.Key.ClassroomId, g.Key.Name, Count = g.Count() })
-                    .OrderByDescending(g => g.Count)
-                    .FirstOrDefaultAsync(ct);
-                var mostActiveClass = topClassRaw != null
-                    ? new MostActiveClass(topClassRaw.ClassroomId, topClassRaw.Name, topClassRaw.Count)
-                    : null;
-
-                totals = new OverviewTotals(users, classes, assignmentsCount, submissionsCount, dailyVisits, weeklyVisits, growthRate);
-                charts = new OverviewCharts(submissionsPerMonth, loginsPerWeek, roleDistribution, activityHeatmap);
-                quality = new OverviewQuality(averageScore, completionRate, overdueAssignments, mostActiveClass);
-
-                if (_shouldCacheOverview && _overviewCacheDuration > TimeSpan.Zero)
-                {
-                    var cachePayload = new OverviewCachePayload(totals, charts, quality);
-                    var serialized = JsonSerializer.Serialize(cachePayload, _jsonOptions);
-                    var cacheOptions = new DistributedCacheEntryOptions
-                    {
-                        AbsoluteExpirationRelativeToNow = _overviewCacheDuration
-                    };
-                    await _cache.SetStringAsync(OverviewCacheKey, serialized, cacheOptions, ct);
+                    activityHeatmap.Add(new HeatmapCell(day.ToString("ddd", viCulture), slot.label, total));
                 }
             }
+
+            var gradeCount = await _db.Grades.CountAsync(ct);
+            double averageScore = 0;
+            if (gradeCount > 0)
+            {
+                averageScore = Math.Round(await _db.Grades.AverageAsync(g => g.Score, ct), 1);
+            }
+            var completionRate = assignmentsCount == 0 ? 0 : Math.Round((double)submissionsCount / assignmentsCount * 100d, 1);
+            var overdueAssignments = await _db.Assignments.CountAsync(a => a.DueAt != null && a.DueAt < now && !a.Submissions.Any(), ct);
+            var sevenDaysAgo = now.AddDays(-7);
+            var topClassRaw = await _db.Submissions
+                .Where(s => s.SubmittedAt >= sevenDaysAgo)
+                .GroupBy(s => new { s.Assignment!.ClassroomId, s.Assignment.Classroom!.Name })
+                .Select(g => new { g.Key.ClassroomId, g.Key.Name, Count = g.Count() })
+                .OrderByDescending(g => g.Count)
+                .FirstOrDefaultAsync(ct);
+            var mostActiveClass = topClassRaw != null
+                ? new MostActiveClass(topClassRaw.ClassroomId, topClassRaw.Name, topClassRaw.Count)
+                : null;
+
+            var totals = new OverviewTotals(users, classes, assignmentsCount, submissionsCount, dailyVisits, weeklyVisits, growthRate);
+            var charts = new OverviewCharts(submissionsPerMonth, loginsPerWeek, roleDistribution, activityHeatmap);
+            var quality = new OverviewQuality(averageScore, completionRate, overdueAssignments, mostActiveClass);
 
             var activitiesList = await _activityStream.GetRecentAsync(20, ct);
             var activities = activitiesList
@@ -492,7 +426,16 @@ namespace class_api.Controllers
                 .ToListAsync();
             if (studentIds.Any())
             {
-                await _dispatcher.DispatchAsync(studentIds, "Bài tập mới", $"\"{assignment.Title}\" vừa được đăng.", "assignment", classroom.Id, assignment.Id);
+                var actorName = classroom.Teacher?.FullName ?? "Giáo viên";
+                var actorAvatar = classroom.Teacher?.Avatar;
+                await _notifications.NotifyUsersAsync(
+                    studentIds,
+                    "Bài tập mới",
+                    $"\"{assignment.Title}\" vừa được đăng.",
+                    "assignment",
+                    classroom.Id,
+                    assignment.Id,
+                    new { actorName, actorAvatar });
             }
             return Ok(new { assignment.Id, assignment.Title });
         }

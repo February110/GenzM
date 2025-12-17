@@ -1,6 +1,7 @@
 using class_api.Infrastructure.Data;
 using class_api.Domain;
-using class_api.Services;
+using class_api.Application.Dtos;
+using class_api.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -20,11 +21,11 @@ namespace class_api.Controllers
         private readonly IHubContext<ClassroomHub> _hub;
         private readonly IStorage _storage;
         private readonly IActivityStream _activityStream;
-        private readonly INotificationDispatcher _dispatcher;
+        private readonly INotificationService _notifications;
 
-        public AnnouncementsController(ApplicationDbContext db, ICurrentUser me, IHubContext<ClassroomHub> hub, IStorage storage, IActivityStream activityStream, INotificationDispatcher dispatcher)
+        public AnnouncementsController(ApplicationDbContext db, ICurrentUser me, IHubContext<ClassroomHub> hub, IStorage storage, IActivityStream activityStream, INotificationService notifications)
         {
-            _db = db; _me = me; _hub = hub; _storage = storage; _activityStream = activityStream; _dispatcher = dispatcher;
+            _db = db; _me = me; _hub = hub; _storage = storage; _activityStream = activityStream; _notifications = notifications;
         }
 
         private static string Slugify(string? input)
@@ -86,7 +87,18 @@ namespace class_api.Controllers
                 var preview = ann.Content.Length > 120 ? ann.Content[..120] + "..." : ann.Content;
                 try
                 {
-                    await _dispatcher.DispatchAsync(recipients, "Thông báo mới", preview, "announcement", ann.ClassroomId);
+                    await _notifications.NotifyUsersAsync(
+                        recipients,
+                        "Thông báo mới",
+                        preview,
+                        "announcement",
+                        ann.ClassroomId,
+                        null,
+                        new
+                        {
+                            actorName = creatorName,
+                            actorAvatar = creator?.Avatar
+                        });
                 }
                 catch (Exception ex)
                 {
@@ -200,7 +212,18 @@ namespace class_api.Controllers
                 var preview = ann.Content.Length > 120 ? ann.Content[..120] + "..." : ann.Content;
                 try
                 {
-                    await _dispatcher.DispatchAsync(recipients, "Thông báo mới", preview, "announcement", ann.ClassroomId);
+                    await _notifications.NotifyUsersAsync(
+                        recipients,
+                        "Thông báo mới",
+                        preview,
+                        "announcement",
+                        ann.ClassroomId,
+                        null,
+                        new
+                        {
+                            actorName = creator?.FullName ?? "Giáo viên",
+                            actorAvatar = creator?.Avatar
+                        });
                 }
                 catch (Exception ex)
                 {

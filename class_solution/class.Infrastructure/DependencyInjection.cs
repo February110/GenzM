@@ -16,7 +16,6 @@ namespace class_api.Infrastructure
 
             services.AddScoped<IStorage, AzureStorage>();
             services.AddScoped<IJwtService, JwtService>();
-            services.AddScoped<INotificationDispatcher, RabbitNotificationDispatcher>();
             services.AddHostedService<AssignmentDueReminderService>();
 
             return services;

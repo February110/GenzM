@@ -3,6 +3,7 @@ using class_api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace class_api.Controllers
 {
@@ -40,13 +41,32 @@ namespace class_api.Controllers
                     n.IsRead,
                     n.ClassroomId,
                     n.AssignmentId,
-                    n.CreatedAt
+                    n.CreatedAt,
+                    n.MetadataJson
                 })
                 .ToListAsync();
 
             var unread = await _db.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead);
 
-            return Ok(new { unread, items });
+            var shaped = items.Select(x =>
+            {
+                (string? actorName, string? actorAvatar) = ParseActor(x.MetadataJson);
+                return new
+                {
+                    x.Id,
+                    x.Title,
+                    x.Message,
+                    x.Type,
+                    x.IsRead,
+                    x.ClassroomId,
+                    x.AssignmentId,
+                    x.CreatedAt,
+                    ActorName = actorName,
+                    ActorAvatar = actorAvatar
+                };
+            });
+
+            return Ok(new { unread, items = shaped });
         }
 
         [HttpPost("{id:guid}/read")]
@@ -76,6 +96,32 @@ namespace class_api.Controllers
             }
             await _db.SaveChangesAsync();
             return Ok();
+        }
+
+        private static (string? name, string? avatar) ParseActor(string? metadataJson)
+        {
+            if (string.IsNullOrWhiteSpace(metadataJson)) return (null, null);
+            try
+            {
+                using var doc = JsonDocument.Parse(metadataJson);
+                var root = doc.RootElement;
+                if (root.ValueKind != JsonValueKind.Object) return (null, null);
+                string? name = null;
+                string? avatar = null;
+                if (root.TryGetProperty("actorName", out var nameProp) && nameProp.ValueKind == JsonValueKind.String)
+                {
+                    name = nameProp.GetString();
+                }
+                if (root.TryGetProperty("actorAvatar", out var avatarProp) && avatarProp.ValueKind == JsonValueKind.String)
+                {
+                    avatar = avatarProp.GetString();
+                }
+                return (name, avatar);
+            }
+            catch
+            {
+                return (null, null);
+            }
         }
     }
 }

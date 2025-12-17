@@ -5,6 +5,12 @@ import '../classrooms/classrooms_page.dart';
 import 'pages/feed_page.dart';
 import 'pages/messages_page.dart';
 import 'pages/schedule_page.dart';
+import '../../core/services/notification_hub_service.dart';
+import '../profile/profile_controller.dart';
+import '../assignments/assignments_controller.dart';
+import '../assignments/assignment_detail_page.dart';
+import '../announcements/announcements_controller.dart';
+import '../notifications/notifications_controller.dart';
 
 class HomeShellPage extends ConsumerStatefulWidget {
   const HomeShellPage({super.key});
@@ -16,7 +22,7 @@ class HomeShellPage extends ConsumerStatefulWidget {
 class _HomeShellPageState extends ConsumerState<HomeShellPage> {
   int _index = 0;
 
-  final _pages = const [
+  final List<Widget> _pages = const <Widget>[
     FeedPage(),
     ClassroomsPage(),
     SchedulePage(),
@@ -25,6 +31,38 @@ class _HomeShellPageState extends ConsumerState<HomeShellPage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(profileControllerProvider, (prev, next) {
+      if (next.user != null) {
+        ref.read(notificationHubManagerProvider.notifier).ensureStarted();
+        ref.read(notificationsControllerProvider.notifier).load();
+      } else {
+        ref.read(notificationHubManagerProvider.notifier).stop();
+        ref.read(notificationsControllerProvider.notifier).reset();
+      }
+    });
+
+    ref.listen(notificationEventsProvider, (prev, next) {
+      if (!mounted) return;
+      if (next.isEmpty || (prev != null && prev.length == next.length)) return;
+      final last = next.last;
+      ref.read(notificationsControllerProvider.notifier).addRealtime(last);
+      if (last.classroomId != null && last.classroomId!.isNotEmpty) {
+        ref
+            .invalidate(announcementsControllerProvider(last.classroomId!));
+        ref
+            .invalidate(assignmentsControllerProvider(last.classroomId!));
+      }
+      if (last.assignmentId != null && last.assignmentId!.isNotEmpty) {
+        ref.invalidate(assignmentDetailProvider(last.assignmentId!));
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${last.title}: ${last.message}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    });
+
     return Scaffold(
       body: _pages[_index],
       bottomNavigationBar: BottomNavigationBar(

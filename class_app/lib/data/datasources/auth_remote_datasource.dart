@@ -7,6 +7,7 @@ import '../../core/exceptions/app_exception.dart';
 import '../../core/services/api_client.dart';
 import '../dto/login_request_dto.dart';
 import '../dto/login_response_dto.dart';
+import '../dto/oauth_user_request_dto.dart';
 
 class AuthRemoteDataSource {
   AuthRemoteDataSource(this._client);
@@ -17,6 +18,20 @@ class AuthRemoteDataSource {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         '/auth/login',
+        data: payload.toJson(),
+      );
+      final data = response.data ?? <String, dynamic>{};
+      return LoginResponseDto.fromJson(data);
+    } on DioException catch (error) {
+      final message = _extractMessage(error);
+      throw AppException(message, code: error.response?.statusCode?.toString());
+    }
+  }
+
+  Future<LoginResponseDto> syncOAuth(OAuthUserRequestDto payload) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        '/auth/sync',
         data: payload.toJson(),
       );
       final data = response.data ?? <String, dynamic>{};

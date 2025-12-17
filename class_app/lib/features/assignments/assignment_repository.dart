@@ -26,6 +26,7 @@ abstract class AssignmentRepository {
   Future<List<AssignmentCommentModel>> listComments(
     String assignmentId, {
     String? studentId,
+    int? take,
   });
   Future<AssignmentCommentModel> addComment({
     required String assignmentId,

@@ -136,12 +136,14 @@ class AssignmentRemoteDataSource {
   Future<List<AssignmentCommentModel>> listComments(
     String assignmentId, {
     String? studentId,
+    int? take,
   }) async {
     try {
       final response = await _client.get<List<dynamic>>(
         '/comments/assignment/$assignmentId',
         queryParameters: {
           if (studentId != null) 'studentId': studentId,
+          if (take != null) 'take': take,
         },
       );
       final data = response.data ?? <dynamic>[];

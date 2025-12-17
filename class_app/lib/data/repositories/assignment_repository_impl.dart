@@ -93,11 +93,13 @@ class AssignmentRepositoryImpl implements AssignmentRepository {
   Future<List<AssignmentCommentModel>> listComments(
     String assignmentId, {
     String? studentId,
+    int? take,
   }) async {
     try {
       return await _remote.listComments(
         assignmentId,
         studentId: studentId,
+        take: take,
       );
     } catch (error, stackTrace) {
       _logger.log(

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using class_api.Hubs;
 using Microsoft.EntityFrameworkCore;
+using class_api.Application.Interfaces;
 
 namespace class_api.Controllers
 {
@@ -18,10 +19,11 @@ namespace class_api.Controllers
         private readonly ApplicationDbContext _db;
         private readonly ICurrentUser _me;
         private readonly IHubContext<ClassroomHub> _hub;
+        private readonly INotificationService _notifications;
 
-        public ClassroomsController(ApplicationDbContext db, ICurrentUser me, IHubContext<ClassroomHub> hub)
+        public ClassroomsController(ApplicationDbContext db, ICurrentUser me, IHubContext<ClassroomHub> hub, INotificationService notifications)
         {
-            _db = db; _me = me; _hub = hub;
+            _db = db; _me = me; _hub = hub; _notifications = notifications;
         }
 
         [HttpPost]
@@ -96,6 +98,22 @@ namespace class_api.Controllers
                 fullName = joinedUser?.FullName ?? "",
                 avatar = joinedUser?.Avatar
             });
+
+            if (classroom.TeacherId != Guid.Empty && classroom.TeacherId != _me.UserId)
+            {
+                await _notifications.NotifyUsersAsync(
+                    new[] { classroom.TeacherId },
+                    "Học viên mới",
+                    $"{joinedUser?.FullName ?? "Học viên"} vừa tham gia lớp.",
+                    "member-joined",
+                    classroom.Id,
+                    null,
+                    new
+                    {
+                        actorName = joinedUser?.FullName,
+                        actorAvatar = joinedUser?.Avatar
+                    });
+            }
 
             return Ok(new { message = "Joined", classroomId = classroom.Id });
         }

@@ -32,6 +32,7 @@ class TeacherGradingPage extends ConsumerStatefulWidget {
 
 class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
   bool showSubmitted = true;
+  String? selectedStudentId;
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +46,26 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         .where((m) => !submittedUserIds.contains(m.userId))
         .toList();
     final pendingCount = pendingMembers.length;
+    selectedStudentId ??= (showSubmitted && submitted.isNotEmpty
+        ? submitted.first.userId
+        : !showSubmitted && pendingMembers.isNotEmpty
+        ? pendingMembers.first.userId
+        : studentMembers.isNotEmpty
+        ? studentMembers.first.userId
+        : null);
 
-    final canGrade = showSubmitted && submitted.isNotEmpty;
+    final filteredSubmitted = submitted
+        .where(
+          (s) => selectedStudentId == null || s.userId == selectedStudentId,
+        )
+        .toList();
+    final filteredPending = pendingMembers
+        .where(
+          (m) => selectedStudentId == null || m.userId == selectedStudentId,
+        )
+        .toList();
+
+    final canGrade = showSubmitted && filteredSubmitted.isNotEmpty;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
@@ -79,26 +98,38 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
               ),
             )
           else ...[
-            _studentsScroller(submittedUserIds, showSubmitted),
+            _studentsScroller(
+              submittedUserIds,
+              showSubmitted,
+              selectedStudentId: selectedStudentId,
+              onSelect: (id) {
+                setState(() {
+                  selectedStudentId = selectedStudentId == id ? null : id;
+                });
+              },
+            ),
             const SizedBox(height: 12),
-            if (showSubmitted)
-              submitted.isEmpty
-                  ? const Text(
-                      'Chưa có bài đã nộp.',
-                      style: TextStyle(color: Color(0xFF6B7280)),
-                    )
-                  : Column(
-                      children: submitted
-                          .map((s) => _submissionTile(context, s, true))
-                          .toList(),
-                    )
-            else
-              pendingMembers.isEmpty
-                  ? const Text(
-                      'Không còn học viên chưa nộp.',
-                      style: TextStyle(color: Color(0xFF6B7280)),
-                    )
-                  : Column(children: pendingMembers.map(_pendingTile).toList()),
+            if (showSubmitted) ...[
+              if (submitted.isEmpty)
+                const Text(
+                  'Chưa có bài đã nộp.',
+                  style: TextStyle(color: Color(0xFF6B7280)),
+                )
+              else
+                Column(
+                  children: filteredSubmitted
+                      .map((s) => _submissionTile(context, s, true))
+                      .toList(),
+                ),
+            ] else ...[
+              if (pendingMembers.isEmpty)
+                const Text(
+                  'Không còn học viên chưa nộp.',
+                  style: TextStyle(color: Color(0xFF6B7280)),
+                )
+              else
+                Column(children: filteredPending.map(_pendingTile).toList()),
+            ],
           ],
           const SizedBox(height: 24),
           _sectionTitle('Đánh giá & Phản hồi'),
@@ -155,11 +186,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     );
   }
 
-  Widget _sectionTitle(
-    String title, {
-    String? trailing,
-    int? count,
-  }) {
+  Widget _sectionTitle(String title, {String? trailing, int? count}) {
     return Row(
       children: [
         Text(
@@ -645,7 +672,12 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     );
   }
 
-  Widget _studentsScroller(Set<String> submittedUserIds, bool showSubmitted) {
+  Widget _studentsScroller(
+    Set<String> submittedUserIds,
+    bool showSubmitted, {
+    String? selectedStudentId,
+    required ValueChanged<String> onSelect,
+  }) {
     final studentMembers = widget.members
         .where((m) => (m.role ?? '').toLowerCase() != 'teacher')
         .where(
@@ -663,6 +695,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
           final m = studentMembers[i];
           final submitted = submittedUserIds.contains(m.userId);
           final name = m.fullName ?? 'HV ${i + 1}';
+          final isSelected = selectedStudentId == m.userId;
           return Padding(
             padding: const EdgeInsets.only(right: 12),
             child: Column(
@@ -670,17 +703,32 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
               children: [
                 Stack(
                   children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: submitted
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFFCBD5E1),
-                      child: CircleAvatar(
-                        radius: 25,
-                        backgroundColor: submitted
-                            ? const Color(0xFFDBEAFE)
-                            : const Color(0xFFF1F5F9),
-                        child: _avatarImage(m.avatar, name, submitted),
+                    InkWell(
+                      onTap: () => onSelect(m.userId),
+                      borderRadius: BorderRadius.circular(32),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? const Color(0xFF2563EB)
+                                : Colors.white,
+                            width: isSelected ? 3 : 2,
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          radius: 28,
+                          backgroundColor: isSelected
+                              ? const Color(0xFF2563EB)
+                              : const Color(0xFFE5E7EB),
+                          child: CircleAvatar(
+                            radius: 25,
+                            backgroundColor: isSelected
+                                ? const Color(0xFFDBEAFE)
+                                : const Color(0xFFFDFDFD),
+                            child: _avatarImage(m.avatar, name, submitted),
+                          ),
+                        ),
                       ),
                     ),
                     if (submitted)
@@ -778,8 +826,9 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
   String _initials(String name) {
     final parts = name.trim().split(' ');
     if (parts.isEmpty) return 'HV';
-    if (parts.length == 1)
+    if (parts.length == 1) {
       return parts.first.characters.take(2).toString().toUpperCase();
+    }
     final first = parts.first.characters.take(1).toString();
     final last = parts.last.characters.take(1).toString();
     return (first + last).toUpperCase();
@@ -829,6 +878,35 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
           const Text(
             'Chưa có bài nộp nào. Bạn có thể gửi nhắc nhở.',
             style: TextStyle(fontSize: 12.5, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: member.userId.isEmpty
+                  ? null
+                  : () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => AssignmentChatPage(
+                            assignmentId: widget.assignment.id,
+                            assignmentTitle: widget.assignment.title,
+                            isTeacher: true,
+                            studentId: member.userId,
+                            studentName: member.fullName,
+                          ),
+                        ),
+                      );
+                    },
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
+              ),
+              icon: const Icon(Icons.chat_bubble_outline, size: 18),
+              label: const Text(
+                'Nhắc nhở',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
           ),
         ],
       ),

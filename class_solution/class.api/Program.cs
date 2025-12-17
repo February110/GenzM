@@ -3,51 +3,20 @@ using class_api.Infrastructure.Data;
 using class_api.Filters;
 using class_api.Services;
 using class_api.Hubs;
-using class_api.Options;
+using class_api.Application.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using class_api.Json;
-using StackExchange.Redis;
-using RabbitMQ.Client;
 using class_api.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.WebHost.UseUrls("http://0.0.0.0:5081");
+
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
-
-var redisConfiguration = builder.Configuration.GetConnectionString("Redis") ?? builder.Configuration["Redis:Configuration"];
-IConnectionMultiplexer? redisMux = null;
-if (!string.IsNullOrWhiteSpace(redisConfiguration))
-{
-    try
-    {
-        var redisOptions = ConfigurationOptions.Parse(redisConfiguration);
-        redisOptions.AbortOnConnectFail = false; // không ném lỗi ngay, cho phép retry nền
-        redisMux = ConnectionMultiplexer.Connect(redisOptions);
-
-        builder.Services.AddStackExchangeRedisCache(options =>
-        {
-            options.Configuration = redisConfiguration;
-            options.InstanceName = builder.Configuration["Redis:InstanceName"] ?? "class:";
-        });
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"⚠️ Redis connection failed, fallback to in-memory cache: {ex.Message}");
-    }
-}
-
-if (redisMux != null)
-{
-    builder.Services.AddSingleton<IConnectionMultiplexer>(redisMux);
-}
-else
-{
-    builder.Services.AddDistributedMemoryCache();
-}
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, CurrentUser>();
@@ -60,48 +29,11 @@ builder.Services.AddControllers().AddJsonOptions(o =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 var jwtKeyConfig = builder.Configuration["Jwt:Key"] ?? string.Empty;
-var key = Encoding.UTF8.GetBytes(jwtKeyConfig);
 
 builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IActivityStream, ActivityStream>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMQ"));
-var rabbitSection = builder.Configuration.GetSection("RabbitMQ").Get<RabbitMqOptions>();
-
-var rabbitEnabled = rabbitSection is not null && rabbitSection.Enabled;
-if (rabbitEnabled)
-{
-    try
-    {
-        var factory = new ConnectionFactory
-        {
-            HostName = rabbitSection!.HostName,
-            Port = rabbitSection.Port,
-            UserName = rabbitSection.UserName,
-            Password = rabbitSection.Password,
-            AutomaticRecoveryEnabled = true,
-            TopologyRecoveryEnabled = true
-        };
-
-        // Connect once at startup so we can fail fast and fall back cleanly.
-        var rabbitConnection = factory.CreateConnection();
-        builder.Services.AddSingleton<IConnection>(rabbitConnection);
-        builder.Services.AddScoped<INotificationDispatcher, RabbitNotificationDispatcher>();
-        Console.WriteLine("✅ RabbitMQ connected, notifications enabled.");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"⚠️ RabbitMQ unavailable, notifications will be disabled. {ex.Message}");
-        builder.Services.AddSingleton<INotificationDispatcher, NullNotificationDispatcher>();
-    }
-}
-else
-{
-    Console.WriteLine("⚠️ RabbitMQ disabled or not configured. Notifications will be no-op.");
-    builder.Services.AddSingleton<INotificationDispatcher, NullNotificationDispatcher>();
-}
-builder.Services.Configure<WorkerAuthOptions>(builder.Configuration.GetSection("WorkerAuth"));
 
 builder.Services.AddAuthentication("Bearer")
    .AddJwtBearer(opt =>
@@ -164,7 +96,6 @@ builder.Services.AddCors(options =>
                 if (string.IsNullOrWhiteSpace(origin)) return false;
                 if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
                 {
-                    // Cho phép mọi cổng trên localhost/127.0.0.1/10.0.2.2 (flutter web dev)
                     return uri.Host == "localhost" || uri.Host == "127.0.0.1" || uri.Host == "10.0.2.2";
                 }
                 return false;

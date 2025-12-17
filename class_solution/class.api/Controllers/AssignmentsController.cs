@@ -1,7 +1,7 @@
 using class_api.Infrastructure.Data;
 using class_api.Domain;
 using class_api.Application.Dtos;
-using class_api.Services;
+using class_api.Application.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using class_api.Hubs;
 using Microsoft.AspNetCore.Authorization;
@@ -21,11 +21,11 @@ namespace class_api.Controllers
         private readonly IStorage _storage;
         private readonly IHubContext<ClassroomHub> _hub;
         private readonly IActivityStream _activityStream;
-        private readonly INotificationDispatcher _dispatcher;
+        private readonly INotificationService _notifications;
 
-        public AssignmentsController(ApplicationDbContext db, ICurrentUser me, IStorage storage, IHubContext<ClassroomHub> hub, IActivityStream activityStream, INotificationDispatcher dispatcher)
+        public AssignmentsController(ApplicationDbContext db, ICurrentUser me, IStorage storage, IHubContext<ClassroomHub> hub, IActivityStream activityStream, INotificationService notifications)
         {
-            _db = db; _me = me; _storage = storage; _hub = hub; _activityStream = activityStream; _dispatcher = dispatcher;
+            _db = db; _me = me; _storage = storage; _hub = hub; _activityStream = activityStream; _notifications = notifications;
         }
 
         private static string Slugify(string? input)
@@ -120,7 +120,18 @@ namespace class_api.Controllers
             {
                 try
                 {
-                    await _dispatcher.DispatchAsync(studentRecipients, "Bài tập mới", $"\"{a.Title}\" vừa được đăng.", "assignment", dto.ClassroomId, a.Id);
+                    await _notifications.NotifyUsersAsync(
+                        studentRecipients,
+                        "Bài tập mới",
+                        $"\"{a.Title}\" vừa được đăng.",
+                        "assignment",
+                        dto.ClassroomId,
+                        a.Id,
+                        new
+                        {
+                            actorName = member.User?.FullName,
+                            actorAvatar = member.User?.Avatar
+                        });
                 }
                 catch (Exception ex)
                 {
@@ -228,7 +239,7 @@ namespace class_api.Controllers
             {
                 try
                 {
-                    await _dispatcher.DispatchAsync(studentIds, "Bài tập mới", $"\"{a.Title}\" vừa được đăng.", "assignment", ClassroomId, a.Id);
+                    await _notifications.NotifyUsersAsync(studentIds, "Bài tập mới", $"\"{a.Title}\" vừa được đăng.", "assignment", ClassroomId, a.Id);
                 }
                 catch (Exception ex)
                 {

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App display name -->
+    <string name="app_name">class_app</string>
+
+    <!-- Điền App ID Facebook (dạng số) -->
+    <string name="facebook_app_id"></string>
+    <!-- Điền Client Token Facebook nếu có -->
+    <string name="facebook_client_token"></string>
+    <!-- Scheme cho Facebook login: fb + appId, ví dụ fb1234567890 -->
+    <string name="fb_login_protocol_scheme"></string>
+
+    <!-- Điền Google OAuth Web Client ID nếu cần dùng ở native (optional) -->
+    <string name="google_web_client_id"></string>
+</resources>

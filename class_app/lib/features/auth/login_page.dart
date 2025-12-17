@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/config/app_router.dart';
+import '../../core/config/oauth_config.dart';
 import 'auth_controller.dart';
 import 'signup_page.dart';
 
@@ -304,7 +305,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             child: SizedBox(
                               height: 48,
                               child: OutlinedButton(
-                                onPressed: () {},
+                                onPressed: () async {
+                                  await ref
+                                      .read(authControllerProvider.notifier)
+                                      .loginWithGoogle(
+                                        clientId: OAuthConfig.googleClientId,
+                                      );
+                                },
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
                                     color: Colors.grey.shade300,
@@ -342,7 +349,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             child: SizedBox(
                               height: 48,
                               child: OutlinedButton(
-                                onPressed: () {},
+                                onPressed: () async {
+                                  await ref
+                                      .read(authControllerProvider.notifier)
+                                      .loginWithFacebook();
+                                },
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
                                     color: Colors.grey.shade300,

@@ -30,6 +30,7 @@ namespace class_api.Services
             var users = userIds.Distinct().ToList();
             if (!users.Any()) return;
 
+            var actor = ExtractActor(metadata);
             var notifications = users.Select(uid => new Notification
             {
                 UserId = uid,
@@ -54,9 +55,51 @@ namespace class_api.Services
                     notification.ClassroomId,
                     notification.AssignmentId,
                     notification.IsRead,
-                    notification.CreatedAt);
+                    notification.CreatedAt,
+                    actor.name,
+                    actor.avatar);
 
                 await _hub.Clients.Group($"user:{notification.UserId}").SendAsync("NotificationReceived", payload, ct);
+            }
+        }
+
+        private static (string? name, string? avatar) ExtractActor(object? metadata)
+        {
+            if (metadata == null) return (null, null);
+            try
+            {
+                JsonElement root;
+                if (metadata is JsonElement element)
+                {
+                    root = element;
+                }
+                else
+                {
+                    var json = JsonSerializer.Serialize(metadata);
+                    using var doc = JsonDocument.Parse(json);
+                    root = doc.RootElement.Clone();
+                }
+
+                string? actorName = null;
+                string? actorAvatar = null;
+
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("actorName", out var nameProp) && nameProp.ValueKind == JsonValueKind.String)
+                    {
+                        actorName = nameProp.GetString();
+                    }
+                    if (root.TryGetProperty("actorAvatar", out var avatarProp) && avatarProp.ValueKind == JsonValueKind.String)
+                    {
+                        actorAvatar = avatarProp.GetString();
+                    }
+                }
+
+                return (actorName, actorAvatar);
+            }
+            catch
+            {
+                return (null, null);
             }
         }
     }

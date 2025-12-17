@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/services/notification_hub_service.dart';
 import '../../../data/models/classroom_model.dart';
 import '../../classrooms/classroom_controller.dart';
 import '../../classrooms/classrooms_page.dart'
     show ClassroomDetailPage, ClassroomsPage;
+import '../../notifications/notifications_controller.dart';
+import '../../notifications/notifications_page.dart';
 import '../../profile/profile_controller.dart';
 import '../../profile/profile_page.dart';
 
@@ -30,7 +33,15 @@ class _FeedPageState extends ConsumerState<FeedPage> {
   Widget build(BuildContext context) {
     final state = ref.watch(classroomControllerProvider);
     final profile = ref.watch(profileControllerProvider);
+    final hubStatus = ref.watch(notificationHubManagerProvider);
+    final notifications = ref.watch(notificationsControllerProvider);
     final classes = state.items;
+
+    if (profile.user != null && hubStatus == HubStatus.disconnected) {
+      Future.microtask(
+        () => ref.read(notificationHubManagerProvider.notifier).ensureStarted(),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
@@ -56,12 +67,21 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                         MaterialPageRoute(builder: (_) => const ProfilePage()),
                       );
                     },
-                    onBellTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Tính năng thông báo đang được cập nhật.',
-                          ),
+                    unreadCount: notifications.unread,
+                    onBellTap: () async {
+                      if (hubStatus == HubStatus.disconnected) {
+                        await ref
+                            .read(notificationHubManagerProvider.notifier)
+                            .ensureStarted();
+                        if (!context.mounted) return;
+                      }
+                      await ref
+                          .read(notificationsControllerProvider.notifier)
+                          .load();
+                      if (!context.mounted) return;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsPage(),
                         ),
                       );
                     },
@@ -179,6 +199,7 @@ class _HeaderCard extends StatelessWidget {
     this.avatarUrl,
     required this.onAvatarTap,
     required this.onBellTap,
+    this.unreadCount = 0,
   });
 
   final bool isLoading;
@@ -186,6 +207,7 @@ class _HeaderCard extends StatelessWidget {
   final String? avatarUrl;
   final VoidCallback onAvatarTap;
   final VoidCallback onBellTap;
+  final int unreadCount;
 
   @override
   Widget build(BuildContext context) {
@@ -234,12 +256,38 @@ class _HeaderCard extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            onPressed: onBellTap,
-            icon: const Icon(
-              Icons.notifications_none,
-              color: Color(0xFF111827),
-            ),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                onPressed: onBellTap,
+                icon: const Icon(
+                  Icons.notifications_none,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              if (unreadCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE11D48),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      unreadCount > 9 ? '9+' : unreadCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),

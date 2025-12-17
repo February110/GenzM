@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using class_api.Hubs;
 using Microsoft.EntityFrameworkCore;
+using class_api.Application.Interfaces;
 
 namespace class_api.Controllers
 {
@@ -17,10 +18,11 @@ namespace class_api.Controllers
         private readonly ApplicationDbContext _db;
         private readonly ICurrentUser _me;
         private readonly IHubContext<ClassroomHub> _hub;
+        private readonly INotificationService _notifications;
 
-        public CommentsController(ApplicationDbContext db, ICurrentUser me, IHubContext<ClassroomHub> hub)
+        public CommentsController(ApplicationDbContext db, ICurrentUser me, IHubContext<ClassroomHub> hub, INotificationService notifications)
         {
-            _db = db; _me = me; _hub = hub;
+            _db = db; _me = me; _hub = hub; _notifications = notifications;
         }
 
         [HttpGet("assignment/{assignmentId:guid}")]
@@ -89,11 +91,38 @@ namespace class_api.Controllers
             _db.Comments.Add(c);
             await _db.SaveChangesAsync();
 
-            var payload = new { c.Id, c.AssignmentId, c.UserId, userName = (await _db.Users.FindAsync(_me.UserId))?.FullName ?? "", c.Content, CreatedAt = DateTime.SpecifyKind(c.CreatedAt, DateTimeKind.Utc), targetUserId = c.TargetUserId };
+            var actor = await _db.Users.FindAsync(_me.UserId);
+            var payload = new { c.Id, c.AssignmentId, c.UserId, userName = actor?.FullName ?? "", actor?.Avatar, c.Content, CreatedAt = DateTime.SpecifyKind(c.CreatedAt, DateTimeKind.Utc), targetUserId = c.TargetUserId };
             var aid = dto.AssignmentId.ToString().ToLowerInvariant();
             var sid = (c.TargetUserId ?? Guid.Empty).ToString().ToLowerInvariant();
             var threadGroup = $"{aid}:{sid}";
             await _hub.Clients.Group(threadGroup).SendAsync("CommentAdded", payload);
+
+            // Notify relevant users
+            var recipients = new List<Guid>();
+            if (target.HasValue && target.Value != _me.UserId) recipients.Add(target.Value);
+
+            var classroomTeacherId = await _db.Assignments
+                .Where(a2 => a2.Id == dto.AssignmentId)
+                .Join(_db.Classrooms, a2 => a2.ClassroomId, cls => cls.Id, (a2, cls) => cls.TeacherId)
+                .FirstOrDefaultAsync();
+            if (classroomTeacherId != Guid.Empty && classroomTeacherId != _me.UserId)
+            {
+                recipients.Add(classroomTeacherId);
+            }
+
+            if (recipients.Any())
+            {
+                await _notifications.NotifyUsersAsync(
+                    recipients,
+                    "Bình luận mới",
+                    c.Content,
+                    "comment",
+                    a?.ClassroomId,
+                    dto.AssignmentId,
+                    new { actorName = actor?.FullName, actorAvatar = actor?.Avatar });
+            }
+
             return Ok(payload);
         }
     }

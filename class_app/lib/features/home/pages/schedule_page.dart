@@ -5,8 +5,10 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import '../../../data/models/assignment_model.dart';
 import '../../../data/models/classroom_model.dart';
+import '../../../data/models/classroom_detail_model.dart';
 import '../../../data/repositories/assignment_repository_impl.dart';
 import '../../../data/repositories/classroom_repository_impl.dart';
+import '../../profile/profile_controller.dart';
 
 class SchedulePage extends ConsumerWidget {
   const SchedulePage({super.key});
@@ -138,13 +140,38 @@ final calendarAssignmentsProvider =
       await initializeDateFormatting('vi');
       final classroomRepo = ref.read(classroomRepositoryProvider);
       final assignmentRepo = ref.read(assignmentRepositoryProvider);
+      final userId = ref.read(profileControllerProvider).user?.id;
       final selectedId = ref.watch(selectedCalendarClassIdProvider);
 
       // Luôn lấy mới danh sách lớp để có assignment mới nhất
       final classrooms = await classroomRepo.getClassrooms();
-      final filteredClassrooms = selectedId == null
-          ? classrooms
-          : classrooms.where((c) => c.id == selectedId).toList();
+      final filteredClassrooms = <ClassroomModel>[];
+      for (final c in classrooms) {
+        final isSelected = selectedId == null || c.id == selectedId;
+        if (!isSelected) continue;
+
+        final role = (c.role ?? '').toLowerCase();
+        var isTeacher = role.contains('teacher');
+        var isStudent = role.contains('student') || role.contains('member');
+
+        // Nếu role trống, fallback kiểm tra theo members trong detail
+        if (!isTeacher && !isStudent && userId != null) {
+          try {
+            final detail = await classroomRepo.getClassroomDetail(c.id);
+            final member = detail.members.firstWhere(
+              (m) => m.userId == userId,
+              orElse: () => const ClassroomMember(userId: ''),
+            );
+            final mRole = (member.role ?? '').toLowerCase();
+            isTeacher = mRole.contains('teacher');
+            isStudent = mRole.contains('student') || mRole.contains('member');
+          } catch (_) {}
+        }
+
+        if (!isTeacher && isStudent) {
+          filteredClassrooms.add(c);
+        }
+      }
       final items = <CalendarItem>[];
 
       for (final c in filteredClassrooms) {
@@ -171,7 +198,31 @@ final calendarAssignmentsProvider =
 final calendarClassroomsProvider =
     FutureProvider.autoDispose<List<ClassroomModel>>((ref) async {
       final repo = ref.read(classroomRepositoryProvider);
-      return repo.getClassrooms();
+      final userId = ref.read(profileControllerProvider).user?.id;
+      final classes = await repo.getClassrooms();
+      final filtered = <ClassroomModel>[];
+      for (final c in classes) {
+        final role = (c.role ?? '').toLowerCase();
+        var isTeacher = role.contains('teacher');
+        var isStudent = role.contains('student') || role.contains('member');
+
+        if (!isTeacher && !isStudent && userId != null) {
+          try {
+            final detail = await repo.getClassroomDetail(c.id);
+            final member = detail.members.firstWhere(
+              (m) => m.userId == userId,
+              orElse: () => const ClassroomMember(userId: ''),
+            );
+            final mRole = (member.role ?? '').toLowerCase();
+            isStudent = mRole.contains('student') || mRole.contains('member');
+          } catch (_) {}
+        }
+
+        if (!isTeacher && isStudent) {
+          filtered.add(c);
+        }
+      }
+      return filtered;
     });
 
 final selectedCalendarClassIdProvider = StateProvider<String?>((ref) => null);

@@ -101,6 +101,7 @@ class AssignmentDetailPage extends ConsumerWidget {
                   onRefresh: () async {
                     ref.invalidate(assignmentDetailProvider(assignmentId));
                     ref.invalidate(assignmentMaterialsProvider(assignmentId));
+                    ref.invalidate(mySubmissionsProvider);
                     await ref.read(assignmentDetailProvider(assignmentId).future);
                   },
                   child: ListView(

@@ -62,7 +62,8 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
             studentId: widget.isTeacher ? widget.studentId : null,
           );
       ref.invalidate(assignmentCommentsProvider(_params));
-      await ref.refresh(assignmentCommentsProvider(_params).future);
+      final _ =
+          await ref.refresh(assignmentCommentsProvider(_params).future);
       _controller.clear();
       _scrollToBottom();
     } catch (error) {
