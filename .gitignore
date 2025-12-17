@@ -37,6 +37,10 @@ coverage/
 **/packages/
 **/project.lock.json
 
+# Local configuration / secrets
+**/appsettings.*.json
+**/secrets.json
+
 # Terraform/Cloud artifacts (if any)
 *.tfstate
 *.tfstate.backup
