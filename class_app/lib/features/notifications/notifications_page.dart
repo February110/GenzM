@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/models/notification_model.dart';
-import '../../core/config/app_config.dart';
 import '../assignments/assignment_detail_page.dart';
 import '../classrooms/classrooms_page.dart';
 import 'notifications_controller.dart';
@@ -99,7 +98,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                 _AvatarChip(
                                   text: _initials(item.actorName ?? item.title, fallback: item.type),
                                   color: palette.avatarBg,
-                                  avatarUrl: item.actorAvatar,
+                                  icon: action.icon,
+                                  iconColor: palette.accent,
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -151,11 +151,9 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                             const SizedBox(height: 10),
                             Row(
                               children: [
-                                const SizedBox(width: 46), // thụt vào bằng tiêu đề (avatar + spacing)
-                                Icon(action.icon, size: 16, color: palette.accent),
-                                const SizedBox(width: 6),
+                                const SizedBox(width: 46),
                                 Text(
-                                  action.label,
+                                  'Xem chi tiết',
                                   style: TextStyle(
                                     color: palette.accent,
                                     fontWeight: FontWeight.w700,
@@ -204,23 +202,25 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 }
 
 class _AvatarChip extends StatelessWidget {
-  const _AvatarChip({required this.text, required this.color, this.avatarUrl});
+  const _AvatarChip({
+    required this.text,
+    required this.color,
+    this.icon,
+    this.iconColor,
+  });
 
   final String text;
   final Color color;
-  final String? avatarUrl;
+  final IconData? icon;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
-    final resolved = AppConfig.resolveAssetUrl(avatarUrl ?? '');
-    final hasAvatar = resolved.isNotEmpty;
-
     return CircleAvatar(
       radius: 18,
       backgroundColor: color,
-      backgroundImage: hasAvatar ? NetworkImage(resolved) : null,
-      child: hasAvatar
-          ? null
+      child: icon != null
+          ? Icon(icon, size: 16, color: iconColor ?? Colors.white)
           : Text(
               text,
               style: const TextStyle(

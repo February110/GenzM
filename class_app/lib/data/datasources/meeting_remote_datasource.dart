@@ -118,6 +118,28 @@ class MeetingRemoteDataSource {
     }
   }
 
+  Future<void> leave(String meetingId) async {
+    try {
+      await _client.post<void>('/meetings/$meetingId/leave');
+    } on DioException catch (error) {
+      throw AppException(
+        _extractMessage(error),
+        code: error.response?.statusCode?.toString(),
+      );
+    }
+  }
+
+  Future<void> endMeeting(String meetingId) async {
+    try {
+      await _client.post<void>('/meetings/$meetingId/end');
+    } on DioException catch (error) {
+      throw AppException(
+        _extractMessage(error),
+        code: error.response?.statusCode?.toString(),
+      );
+    }
+  }
+
   String _extractMessage(DioException error) {
     final data = error.response?.data;
     if (data is Map && data['message'] is String) {

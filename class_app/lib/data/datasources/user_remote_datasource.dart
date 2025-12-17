@@ -44,6 +44,26 @@ class UserRemoteDataSource {
     }
   }
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _client.post<void>(
+        '/auth/change-password',
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+    } on DioException catch (error) {
+      throw AppException(
+        _extractMessage(error),
+        code: error.response?.statusCode?.toString(),
+      );
+    }
+  }
+
   String _extractMessage(DioException error) {
     final data = error.response?.data;
     if (data is Map && data['message'] is String) {

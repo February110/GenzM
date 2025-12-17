@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 import '../../../data/models/assignment_model.dart';
 import '../../../data/models/classroom_model.dart';
@@ -18,6 +19,8 @@ class SchedulePage extends ConsumerWidget {
     final scheduleAsync = ref.watch(calendarAssignmentsProvider);
     final classesAsync = ref.watch(calendarClassroomsProvider);
     final selectedClassId = ref.watch(selectedCalendarClassIdProvider);
+    final selectedDay = ref.watch(selectedCalendarDayProvider);
+    final focusedDay = ref.watch(focusedCalendarDayProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -56,77 +59,89 @@ class SchedulePage extends ConsumerWidget {
 
             final grouped = _groupByDate(filteredItems);
             final dates = grouped.keys.toList()..sort();
+            final normalizedSelected = _normalize(selectedDay);
 
-            return ListView.builder(
+            return ListView(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-              itemCount: dates.isEmpty ? 1 : dates.length + 1,
-              itemBuilder: (_, index) {
-                if (index == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+              children: [
+                _CalendarCard(
+                  focusedDay: focusedDay,
+                  selectedDay: normalizedSelected,
+                  events: grouped,
+                  onDaySelected: (selected, focused) {
+                    ref.read(selectedCalendarDayProvider.notifier).state =
+                        _normalize(selected);
+                    ref.read(focusedCalendarDayProvider.notifier).state = focused;
+                  },
+                ),
+                const SizedBox(height: 12),
+                classesAsync.when(
+                  data: (classes) => _ClassFilterButton(
+                    selected: selectedClassId,
+                    classes: classes,
+                    onSelect: (value) {
+                      ref.read(selectedCalendarClassIdProvider.notifier).state = value;
+                      ref.invalidate(calendarAssignmentsProvider);
+                    },
+                  ),
+                  loading: () => const SizedBox(
+                    height: 48,
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (e, _) => const SizedBox.shrink(),
+                ),
+                const SizedBox(height: 16),
+                if (dates.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        classesAsync.when(
-                          data: (classes) => _ClassFilterButton(
-                            selected: selectedClassId,
-                            classes: classes,
-                            onSelect: (value) {
-                              ref
-                                  .read(selectedCalendarClassIdProvider.notifier)
-                                  .state = value;
-                              ref.invalidate(calendarAssignmentsProvider);
-                            },
+                      children: const [
+                        Icon(Icons.event_available, color: Color(0xFF94A3B8)),
+                        SizedBox(height: 8),
+                        Text(
+                          'Chưa có bài tập sắp tới',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF6B7280),
                           ),
-                          loading: () => const SizedBox(
-                            height: 48,
-                            child: Center(child: CircularProgressIndicator()),
-                          ),
-                          error: (e, _) => const SizedBox.shrink(),
                         ),
-                        if (dates.isEmpty)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 24),
-                            child: Center(
-                              child: Text(
-                                'Chưa có bài tập sắp tới',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF6B7280),
-                                ),
+                      ],
+                    ),
+                  )
+                else
+                  ...dates.map(
+                    (day) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              _formatDate(day),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0F172A),
                               ),
                             ),
                           ),
-                      ],
-                    ),
-                  );
-                }
-
-                final day = dates[index - 1];
-                final assignments = grouped[day]!;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        _formatDate(day),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
-                        ),
+                          ...grouped[day]!.map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _ScheduleCard(item: item),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    ...assignments.map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _ScheduleCard(item: item),
-                      ),
-                    ),
-                  ],
-                );
-              },
+                  ),
+              ],
             );
           },
         ),
@@ -226,6 +241,10 @@ final calendarClassroomsProvider =
     });
 
 final selectedCalendarClassIdProvider = StateProvider<String?>((ref) => null);
+final selectedCalendarDayProvider =
+    StateProvider<DateTime>((ref) => DateTime.now());
+final focusedCalendarDayProvider =
+    StateProvider<DateTime>((ref) => DateTime.now());
 
 class CalendarItem {
   CalendarItem({
@@ -244,7 +263,7 @@ Map<DateTime, List<CalendarItem>> _groupByDate(List<CalendarItem> items) {
   final map = <DateTime, List<CalendarItem>>{};
   for (final item in items) {
     final due = item.dueLocal;
-    final key = DateTime(due.year, due.month, due.day);
+    final key = _normalize(due);
     map.putIfAbsent(key, () => []).add(item);
   }
   return map;
@@ -253,7 +272,7 @@ Map<DateTime, List<CalendarItem>> _groupByDate(List<CalendarItem> items) {
 String _formatDate(DateTime date) {
   final now = DateTime.now();
   final todayKey = DateTime(now.year, now.month, now.day);
-  final key = DateTime(date.year, date.month, date.day);
+  final key = _normalize(date);
   final df = DateFormat('EEEE, dd/MM', 'vi');
   if (key == todayKey) return 'Hôm nay · ${df.format(date)}';
   if (key == todayKey.add(const Duration(days: 1))) {
@@ -368,6 +387,95 @@ class _ScheduleCard extends StatelessWidget {
     );
   }
 }
+
+class _CalendarCard extends StatelessWidget {
+  const _CalendarCard({
+    required this.focusedDay,
+    required this.selectedDay,
+    required this.events,
+    required this.onDaySelected,
+  });
+
+  final DateTime focusedDay;
+  final DateTime selectedDay;
+  final Map<DateTime, List<CalendarItem>> events;
+  final void Function(DateTime selectedDay, DateTime focusedDay) onDaySelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+      child: SizedBox(
+        height: 340,
+        child: TableCalendar<CalendarItem>(
+          locale: 'vi',
+          rowHeight: 42,
+          firstDay: DateTime.utc(2020, 1, 1),
+          lastDay: DateTime.utc(2050, 12, 31),
+          focusedDay: focusedDay,
+          selectedDayPredicate: (day) => isSameDay(day, selectedDay),
+          onDaySelected: onDaySelected,
+          headerStyle: const HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
+            titleTextStyle: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              color: Color(0xFF0F172A),
+            ),
+            leftChevronMargin: EdgeInsets.zero,
+            rightChevronMargin: EdgeInsets.zero,
+          ),
+          daysOfWeekStyle: const DaysOfWeekStyle(
+            weekdayStyle: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF6B7280),
+            ),
+            weekendStyle: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+          calendarStyle: CalendarStyle(
+            todayDecoration: BoxDecoration(
+              color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            selectedDecoration: const BoxDecoration(
+              color: Color(0xFF2563EB),
+              shape: BoxShape.circle,
+            ),
+            markerDecoration: const BoxDecoration(
+              color: Color(0xFF2563EB),
+              shape: BoxShape.circle,
+            ),
+            markerSizeScale: 0.15,
+            markersAlignment: Alignment.bottomCenter,
+            markersMaxCount: 3,
+            outsideDaysVisible: false,
+          ),
+          availableGestures: AvailableGestures.horizontalSwipe,
+          startingDayOfWeek: StartingDayOfWeek.monday,
+          eventLoader: (day) => events[_normalize(day)] ?? const <CalendarItem>[],
+        ),
+      ),
+    );
+  }
+}
+
+DateTime _normalize(DateTime date) => DateTime(date.year, date.month, date.day);
 
 class _ClassFilterButton extends StatelessWidget {
   const _ClassFilterButton({

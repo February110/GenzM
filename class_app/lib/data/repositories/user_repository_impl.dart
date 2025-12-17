@@ -31,6 +31,25 @@ class UserRepository {
       rethrow;
     }
   }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _remote.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    } catch (error, stackTrace) {
+      _logger.log(
+        'change password failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
 }
 
 final userRepositoryProvider = Provider<UserRepository>((ref) {

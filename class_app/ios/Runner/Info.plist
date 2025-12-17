@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Ứng dụng cần dùng camera để bạn tham gia lớp học trực tuyến.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ứng dụng cần dùng micro để trao đổi trong lớp học trực tuyến.</string>
 </dict>
 </plist>

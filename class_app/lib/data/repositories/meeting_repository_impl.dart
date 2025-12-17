@@ -44,6 +44,14 @@ class MeetingRepository {
   Future<MeetingJoinResult> join(String roomCode) {
     return _remote.join(roomCode);
   }
+
+  Future<void> leave(String meetingId) {
+    return _remote.leave(meetingId);
+  }
+
+  Future<void> endMeeting(String meetingId) {
+    return _remote.endMeeting(meetingId);
+  }
 }
 
 final meetingRepositoryProvider = Provider<MeetingRepository>((ref) {

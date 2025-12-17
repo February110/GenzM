@@ -237,11 +237,46 @@ namespace class_api.Controllers
             });
         }
 
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            var userIdClaim = User.FindFirst("id")?.Value;
+            if (userIdClaim == null)
+                return Unauthorized(new { message = "Token không hợp lệ." });
+
+            var userId = Guid.Parse(userIdClaim);
+            var user = await _db.Users.FindAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "Không tìm thấy người dùng." });
+
+            if (user.Provider != "local")
+                return BadRequest(new { message = $"Tài khoản đăng nhập bằng {user.Provider}, không thể đổi mật khẩu tại đây." });
+
+            if (string.IsNullOrWhiteSpace(dto.CurrentPassword) || string.IsNullOrWhiteSpace(dto.NewPassword))
+                return BadRequest(new { message = "Vui lòng nhập đầy đủ mật khẩu hiện tại và mật khẩu mới." });
+
+            if (dto.NewPassword.Length < 6)
+                return BadRequest(new { message = "Mật khẩu mới phải từ 6 ký tự trở lên." });
+
+            var valid = BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, user.PasswordHash);
+            if (!valid)
+                return BadRequest(new { message = "Mật khẩu hiện tại không đúng." });
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            user.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+
+            return Ok(new { message = "Đổi mật khẩu thành công." });
+        }
+
         public class UpdateProfileDto
         {
             public string? FullName { get; set; }
             public IFormFile? Avatar { get; set; }
         }
+
+        public record ChangePasswordDto(string CurrentPassword, string NewPassword);
 
         private Task PublishActivity(string type, string actor, string action, string? context)
         {

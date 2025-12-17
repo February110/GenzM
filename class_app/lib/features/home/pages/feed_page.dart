@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/services/notification_hub_service.dart';
 import '../../../data/models/classroom_model.dart';
+import '../../../data/models/assignment_model.dart';
+import '../../../data/models/classroom_detail_model.dart';
 import '../../classrooms/classroom_controller.dart';
 import '../../classrooms/classrooms_page.dart'
     show ClassroomDetailPage, ClassroomsPage;
+import '../../../data/repositories/classroom_repository_impl.dart';
+import '../../../data/repositories/assignment_repository_impl.dart';
 import '../../notifications/notifications_controller.dart';
 import '../../notifications/notifications_page.dart';
 import '../../profile/profile_controller.dart';
@@ -36,6 +41,7 @@ class _FeedPageState extends ConsumerState<FeedPage> {
     final hubStatus = ref.watch(notificationHubManagerProvider);
     final notifications = ref.watch(notificationsControllerProvider);
     final classes = state.items;
+    final upcomingAsync = ref.watch(upcomingAssignmentsProvider);
 
     if (profile.user != null && hubStatus == HubStatus.disconnected) {
       Future.microtask(
@@ -49,7 +55,10 @@ class _FeedPageState extends ConsumerState<FeedPage> {
         child: RefreshIndicator(
           color: const Color(0xFF2563EB),
           onRefresh: () =>
-              ref.read(classroomControllerProvider.notifier).fetchClassrooms(),
+              Future.wait([
+                ref.read(classroomControllerProvider.notifier).fetchClassrooms(),
+                ref.refresh(upcomingAssignmentsProvider.future),
+              ]),
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
@@ -167,20 +176,36 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                     horizontal: 16,
                     vertical: 14,
                   ),
-                  child: const Text(
-                    'Nhiệm vụ sắp tới',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827),
-                    ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text(
+                        'Nhiệm vụ sắp tới',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) => const _TaskPlaceholder(),
-                  childCount: 1,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: upcomingAsync.when(
+                    loading: () => const _TaskPlaceholder(),
+                    error: (e, _) => const _TaskPlaceholder(),
+                    data: (items) {
+                      if (items.isEmpty) return const _TaskPlaceholder();
+                      return Column(
+                        children: items
+                            .map((t) => _TaskCard(task: t))
+                            .toList(),
+                      );
+                    },
+                  ),
                 ),
               ),
               const SliverToBoxAdapter(child: SizedBox(height: 90)),
@@ -587,6 +612,146 @@ class _TaskPlaceholder extends StatelessWidget {
           ),
           const SizedBox(height: 8),
         ],
+      ),
+    );
+  }
+}
+
+class UpcomingTask {
+  UpcomingTask({
+    required this.assignment,
+    required this.classroom,
+  });
+
+  final AssignmentModel assignment;
+  final ClassroomModel classroom;
+}
+
+final upcomingAssignmentsProvider =
+    FutureProvider.autoDispose<List<UpcomingTask>>((ref) async {
+      final classroomRepo = ref.read(classroomRepositoryProvider);
+      final assignmentRepo = ref.read(assignmentRepositoryProvider);
+      final userId = ref.read(profileControllerProvider).user?.id;
+
+      final classes = await classroomRepo.getClassrooms();
+      final eligible = <ClassroomModel>[];
+      for (final c in classes) {
+        final role = (c.role ?? '').toLowerCase();
+        final isStudent = role.contains('student') ||
+            role.contains('member') ||
+            role.isEmpty;
+        if (!isStudent && userId != null) {
+          try {
+            final detail = await classroomRepo.getClassroomDetail(c.id);
+            final member = detail.members.firstWhere(
+              (m) => m.userId == userId,
+              orElse: () => const ClassroomMember(userId: '', role: ''),
+            );
+            final mRole = (member.role ?? '').toLowerCase();
+            if (mRole.contains('student') || mRole.contains('member')) {
+              eligible.add(c);
+            }
+          } catch (_) {}
+        } else if (isStudent) {
+          eligible.add(c);
+        }
+      }
+
+      final now = DateTime.now();
+      final limit = now.add(const Duration(days: 7));
+      final items = <UpcomingTask>[];
+      for (final c in eligible) {
+        final list = await assignmentRepo.listByClassroom(c.id);
+        for (final a in list) {
+          if (a.dueAt == null) continue;
+          final due = a.dueAt!.toLocal();
+          if (due.isAfter(now) && due.isBefore(limit)) {
+            items.add(UpcomingTask(assignment: a, classroom: c));
+          }
+        }
+      }
+
+      items.sort((a, b) => a.assignment.dueAt!
+          .compareTo(b.assignment.dueAt!));
+
+      return items.take(5).toList();
+    });
+
+class _TaskCard extends StatelessWidget {
+  const _TaskCard({required this.task});
+
+  final UpcomingTask task;
+
+  @override
+  Widget build(BuildContext context) {
+    final due = task.assignment.dueAt?.toLocal();
+    final dueText = due != null
+        ? DateFormat('HH:mm dd/MM').format(due)
+        : 'Chưa có hạn';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE5EDFF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.assignment_outlined, color: Color(0xFF2563EB)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.assignment.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    task.classroom.name,
+                    style: const TextStyle(
+                      color: Color(0xFF2563EB),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time, size: 14, color: Color(0xFF6B7280)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Hạn: $dueText',
+                        style: const TextStyle(color: Color(0xFF6B7280)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

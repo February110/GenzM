@@ -6,6 +6,7 @@ import 'pages/feed_page.dart';
 import 'pages/messages_page.dart';
 import 'pages/schedule_page.dart';
 import '../../core/services/notification_hub_service.dart';
+import '../../core/services/permission_service.dart';
 import '../profile/profile_controller.dart';
 import '../assignments/assignments_controller.dart';
 import '../assignments/assignment_detail_page.dart';
@@ -28,6 +29,14 @@ class _HomeShellPageState extends ConsumerState<HomeShellPage> {
     SchedulePage(),
     MessagesPage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(permissionServiceProvider).requestEssentialPermissions();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/config/app_config.dart';
 import '../auth/auth_controller.dart';
 import 'profile_controller.dart';
+import 'change_password_page.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -137,15 +138,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       width: 190,
                       child: TextField(
                         controller: _nameController,
+                        textAlign: TextAlign.right,
                         decoration: const InputDecoration(
                           border: InputBorder.none,
                           isDense: true,
                           hintText: 'Nhập họ tên',
                         ),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF2563EB),
-                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
                   ),
@@ -154,19 +153,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     label: 'Email',
                     trailing: Text(
                       user?.email ?? '—',
+                      textAlign: TextAlign.right,
                       style: const TextStyle(
                         color: Color(0xFF6B7280),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  const Divider(height: 1, color: Color(0xFFE5E7EB)),
-                  _FieldTile(
-                    label: 'SDT',
-                    trailing: Text(
-                      'Chưa cập nhật',
-                      style: const TextStyle(
-                        color: Color(0xFF94A3B8),
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -205,7 +194,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ChangePasswordPage(),
+                        ),
+                      );
+                    },
                   ),
                   const Divider(height: 1, color: Color(0xFFE5E7EB)),
                   ListTile(
@@ -234,8 +229,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 },
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFDC2626),
-                  side: const BorderSide(color: Color(0xFFE5E7EB)),
+                  backgroundColor: const Color(0xFFFCE7E7),
+                  side: BorderSide(color: const Color(0xFFDC2626).withValues(alpha: 0.4)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
                 ),
                 child: const Text(
                   'Đăng xuất',
