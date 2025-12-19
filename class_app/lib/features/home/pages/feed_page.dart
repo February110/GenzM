@@ -13,6 +13,7 @@ import '../../classrooms/classrooms_page.dart'
     show ClassroomDetailPage, ClassroomsPage;
 import '../../../data/repositories/classroom_repository_impl.dart';
 import '../../../data/repositories/assignment_repository_impl.dart';
+import '../../assignments/submission_status_provider.dart';
 import '../../notifications/notifications_controller.dart';
 import '../../notifications/notifications_page.dart';
 import '../../profile/profile_controller.dart';
@@ -41,7 +42,14 @@ class _FeedPageState extends ConsumerState<FeedPage> {
     final hubStatus = ref.watch(notificationHubManagerProvider);
     final notifications = ref.watch(notificationsControllerProvider);
     final classes = state.items;
+    final totalTeaching =
+        classes.where((c) => (c.role ?? '').toLowerCase().contains('teacher')).length;
+    final totalLearning =
+        classes.where((c) => (c.role ?? '').toLowerCase().contains('student')).length;
     final upcomingAsync = ref.watch(upcomingAssignmentsProvider);
+    final submissionsAsync = ref.watch(mySubmissionsProvider);
+    final submissions = submissionsAsync.valueOrNull;
+    final submittedCount = submissions?.length;
 
     if (profile.user != null && hubStatus == HubStatus.disconnected) {
       Future.microtask(
@@ -100,7 +108,12 @@ class _FeedPageState extends ConsumerState<FeedPage> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _StatsRow(totalClasses: classes.length),
+                  child: _StatsRow(
+                    submittedCount: submittedCount,
+                    totalTeaching: totalTeaching,
+                    totalLearning: totalLearning,
+                    isLoading: state.isLoading || submissionsAsync.isLoading,
+                  ),
                 ),
               ),
               SliverToBoxAdapter(
@@ -367,33 +380,44 @@ class _AvatarCircle extends StatelessWidget {
 }
 
 class _StatsRow extends StatelessWidget {
-  const _StatsRow({required this.totalClasses});
+  const _StatsRow({
+    required this.submittedCount,
+    required this.totalTeaching,
+    required this.totalLearning,
+    this.isLoading = false,
+  });
 
-  final int totalClasses;
+  final int? submittedCount;
+  final int totalTeaching;
+  final int totalLearning;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         _StatCard(
-          label: 'Lớp đang tham gia',
-          value: '$totalClasses',
-          icon: Icons.class_outlined,
-          color: const Color(0xFF2563EB),
+          label: 'Lớp giảng dạy',
+          value: '$totalTeaching',
+          icon: Icons.menu_book_outlined,
+          color: const Color(0xFF7C3AED),
+          isLoading: isLoading,
         ),
         const SizedBox(width: 12),
-        const _StatCard(
+        _StatCard(
+          label: 'Lớp đang học',
+          value: '$totalLearning',
+          icon: Icons.school_outlined,
+          color: const Color(0xFF0EA5E9),
+          isLoading: isLoading,
+        ),
+        const SizedBox(width: 12),
+        _StatCard(
           label: 'Bài tập đã nộp',
-          value: '—',
+          value: submittedCount == null ? '—' : '$submittedCount',
           icon: Icons.assignment_turned_in_outlined,
-          color: Color(0xFF10B981),
-        ),
-        const SizedBox(width: 12),
-        const _StatCard(
-          label: 'Điểm trung bình',
-          value: '—',
-          icon: Icons.star_border,
-          color: Color(0xFFF59E0B),
+          color: const Color(0xFF10B981),
+          isLoading: isLoading,
         ),
       ],
     );
@@ -406,18 +430,21 @@ class _StatCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.color,
+    this.isLoading = false,
   });
 
   final String label;
   final String value;
   final IconData icon;
   final Color color;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
+        constraints: const BoxConstraints(minHeight: 120),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -431,6 +458,7 @@ class _StatCard extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Container(
               padding: const EdgeInsets.all(8),
@@ -441,14 +469,25 @@ class _StatCard extends StatelessWidget {
               child: Icon(icon, color: color, size: 18),
             ),
             const SizedBox(height: 10),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
-              ),
-            ),
+            isLoading
+                ? const SizedBox(
+                    height: 18,
+                    width: 36,
+                    child: LinearProgressIndicator(
+                      minHeight: 6,
+                      borderRadius: BorderRadius.all(Radius.circular(8)),
+                      color: Color(0xFFCBD5E1),
+                      backgroundColor: Color(0xFFF1F5F9),
+                    ),
+                  )
+                : Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
             const SizedBox(height: 6),
             Text(
               label,

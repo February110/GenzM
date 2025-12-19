@@ -1,11 +1,15 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/exceptions/app_exception.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../data/models/ai_quiz_item_model.dart';
 import '../../data/models/assignment_model.dart';
 import '../../data/models/submission_model.dart';
+import '../../data/repositories/ai_repository_impl.dart';
 import '../classrooms/classroom_detail_provider.dart';
 import '../profile/profile_controller.dart';
 import 'assignments_controller.dart';
@@ -117,6 +121,7 @@ class AssignmentsPage extends ConsumerWidget {
                     ? () => _showCreateBottomSheet(
                         context,
                         notifier,
+                        ref,
                         initial: filtered[i],
                         classroomName: detail?.name,
                       )
@@ -169,6 +174,7 @@ class AssignmentsPage extends ConsumerWidget {
                 onPressed: () => _showCreateBottomSheet(
                   context,
                   notifier,
+                  ref,
                   classroomName: detail?.name,
                 ),
                 child: const Icon(Icons.add, color: Colors.white, size: 28),
@@ -181,7 +187,8 @@ class AssignmentsPage extends ConsumerWidget {
 
   void _showCreateBottomSheet(
     BuildContext context,
-    AssignmentsController notifier, {
+    AssignmentsController notifier,
+    WidgetRef ref, {
     AssignmentModel? initial,
     String? classroomName,
   }) {
@@ -190,10 +197,17 @@ class AssignmentsPage extends ConsumerWidget {
     final instructionsController = TextEditingController(
       text: initial?.instructions ?? '',
     );
+    final aiPromptController = TextEditingController(
+      text: initial?.instructions ?? '',
+    );
+    final aiCountController = TextEditingController(text: '5');
     DateTime? selectedDue = initial?.dueAt?.toLocal();
     final pointsController = TextEditingController(
       text: initial?.maxPoints?.toString() ?? (isEditing ? '' : '100'),
     );
+    List<AiQuizItemModel> aiQuizItems = const [];
+    String? aiError;
+    bool isGeneratingQuiz = false;
     List<PlatformFile> attachments = const [];
 
     showModalBottomSheet(
@@ -203,6 +217,8 @@ class AssignmentsPage extends ConsumerWidget {
         final theme = Theme.of(ctx);
         return StatefulBuilder(
           builder: (ctx, setState) {
+            final aiRepo = ref.read(aiRepositoryProvider);
+
             String dueLabel() {
               if (selectedDue == null) return 'Chọn ngày và giờ';
               return DateFormat('HH:mm dd/MM/yyyy').format(selectedDue!);
@@ -246,13 +262,107 @@ class AssignmentsPage extends ConsumerWidget {
               });
             }
 
+            Future<void> generateQuiz() async {
+              final prompt = aiPromptController.text.trim();
+              if (prompt.isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Nhập nội dung để AI tạo câu hỏi.')),
+                );
+                return;
+              }
+              int? desiredCount;
+              final rawCount = aiCountController.text.trim();
+              if (rawCount.isNotEmpty) {
+                desiredCount = int.tryParse(rawCount);
+                if (desiredCount != null) {
+                  desiredCount = desiredCount.clamp(3, 15);
+                  aiCountController.text = desiredCount.toString();
+                }
+              }
+
+              setState(() {
+                isGeneratingQuiz = true;
+                aiError = null;
+              });
+              try {
+                final result = await aiRepo.generateQuiz(
+                  content: prompt,
+                  count: desiredCount,
+                  language: 'vi',
+                );
+                setState(() {
+                  aiQuizItems = result;
+                });
+                if (ctx.mounted && result.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text('AI chưa tạo được câu hỏi, thử lại với nội dung khác.'),
+                    ),
+                  );
+                }
+              } on AppException catch (error) {
+                setState(() {
+                  aiError = error.message;
+                  aiQuizItems = const [];
+                });
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text(error.message)),
+                  );
+                }
+              } catch (error) {
+                setState(() {
+                  aiError = error.toString();
+                  aiQuizItems = const [];
+                });
+                if (ctx.mounted) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text(error.toString())),
+                  );
+                }
+              } finally {
+                if (ctx.mounted) {
+                  setState(() => isGeneratingQuiz = false);
+                }
+              }
+            }
+
+            void appendQuizToInstructions() {
+              if (aiQuizItems.isEmpty) return;
+              final buffer = StringBuffer(instructionsController.text.trim());
+              if (buffer.isNotEmpty) buffer.writeln('\n\n');
+              const labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+              for (var i = 0; i < aiQuizItems.length; i++) {
+                final item = aiQuizItems[i];
+                buffer.writeln('Câu ${i + 1}: ${item.question}');
+                for (var j = 0; j < item.options.length; j++) {
+                  final label = j < labels.length ? labels[j] : '•';
+                  buffer.writeln('$label. ${item.options[j]}');
+                }
+                buffer.writeln();
+              }
+              final updated = buffer.toString().trimRight();
+              instructionsController.text = updated;
+              instructionsController.selection = TextSelection.collapsed(
+                offset: updated.length,
+              );
+              if (ctx.mounted) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Đã chèn câu hỏi vào mô tả.')),
+                );
+              }
+            }
+
             return SafeArea(
               child: Padding(
                 padding: EdgeInsets.only(
                   bottom: MediaQuery.of(ctx).viewInsets.bottom + 12,
                   left: 16,
                   right: 16,
-                  top: 12,
+                  top: (MediaQuery.of(ctx).viewPadding.top > 0
+                          ? MediaQuery.of(ctx).viewPadding.top
+                          : 16) +
+                      16,
                 ),
                 child: SingleChildScrollView(
                   child: Column(
@@ -318,6 +428,155 @@ class AssignmentsPage extends ConsumerWidget {
                         ),
                         minLines: 4,
                         maxLines: 6,
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(
+                                    Icons.auto_awesome,
+                                    color: Color(0xFF2563EB),
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Tạo câu hỏi trắc nghiệm bằng AI',
+                                        style: theme.textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      const Text(
+                                        'AI sẽ dựa trên nội dung bạn nhập để sinh câu hỏi 4 lựa chọn, phù hợp để chèn vào mô tả.',
+                                        style: TextStyle(
+                                          color: Color(0xFF6B7280),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    aiPromptController.text = instructionsController.text;
+                                    aiPromptController.selection = TextSelection.collapsed(
+                                      offset: aiPromptController.text.length,
+                                    );
+                                  },
+                                  child: const Text('Dùng mô tả'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: aiPromptController,
+                              decoration: InputDecoration(
+                                hintText: 'Nhập nội dung/chủ đề để AI tạo câu hỏi...',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              minLines: 3,
+                              maxLines: 5,
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: aiCountController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Số câu (3-15)',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                ElevatedButton.icon(
+                                  onPressed: isGeneratingQuiz ? null : generateQuiz,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF2563EB),
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                  icon: isGeneratingQuiz
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(Icons.playlist_add_check),
+                                  label: Text(isGeneratingQuiz ? 'Đang tạo...' : 'Tạo câu hỏi'),
+                                ),
+                              ],
+                            ),
+                            if (aiError != null) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                aiError!,
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                            if (aiQuizItems.isNotEmpty) ...[
+                              const SizedBox(height: 12),
+                              ...aiQuizItems.asMap().entries.map(
+                                (e) => _AiQuizPreview(
+                                  item: e.value,
+                                  index: e.key,
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  onPressed: appendQuizToInstructions,
+                                  icon: const Icon(Icons.content_paste_go),
+                                  label: const Text('Chèn vào mô tả'),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -764,6 +1023,96 @@ class AssignmentCard extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AiQuizPreview extends StatelessWidget {
+  const _AiQuizPreview({required this.item, required this.index});
+
+  final AiQuizItemModel item;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final options = item.options;
+    final explanation = item.explanation?.trim();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Câu ${index + 1}: ${item.question}',
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 14.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (options.isEmpty)
+            const Text(
+              'AI chưa trả về phương án.',
+              style: TextStyle(color: Color(0xFF9CA3AF)),
+            )
+          else
+            ...options.asMap().entries.map(
+              (entry) => Padding(
+                padding: EdgeInsets.only(
+                  bottom: entry.key == options.length - 1 ? 2 : 6,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${String.fromCharCode(65 + entry.key)}. ',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        entry.value,
+                        style: const TextStyle(
+                          color: Color(0xFF0F172A),
+                          fontSize: 13.2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (item.answer.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Đáp án: ${item.answer}',
+              style: const TextStyle(
+                color: Color(0xFF0EA5E9),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+          if (explanation != null && explanation.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Giải thích: $explanation',
+              style: const TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 13,
+                height: 1.25,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

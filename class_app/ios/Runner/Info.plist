@@ -49,5 +49,28 @@
 	<string>Ứng dụng cần dùng camera để bạn tham gia lớp học trực tuyến.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Ứng dụng cần dùng micro để trao đổi trong lớp học trực tuyến.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>fb1237170308217589</string>
+				<string>com.googleusercontent.apps.100891141743-5c4k87mq2gc9b6m775pck5451v0qglol</string>
+			</array>
+		</dict>
+	</array>
+	<key>FacebookAppID</key>
+	<string>1237170308217589</string>
+	<key>FacebookClientToken</key>
+	<string>9390e4e13ae2249a2ff5f0ede6fd2c52</string>
+	<key>FacebookDisplayName</key>
+	<string>class_app</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>fbapi</string>
+		<string>fb-messenger-share-api</string>
+		<string>fbauth2</string>
+		<string>fbshareextension</string>
+	</array>
 </dict>
 </plist>

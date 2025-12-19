@@ -3,13 +3,12 @@
     <!-- App display name -->
     <string name="app_name">class_app</string>
 
-    <!-- Điền App ID Facebook (dạng số) -->
-    <string name="facebook_app_id"></string>
-    <!-- Điền Client Token Facebook nếu có -->
-    <string name="facebook_client_token"></string>
-    <!-- Scheme cho Facebook login: fb + appId, ví dụ fb1234567890 -->
-    <string name="fb_login_protocol_scheme"></string>
+    <!-- Facebook OAuth configuration -->
+    <string name="facebook_app_id">1237170308217589</string>
+    <string name="facebook_client_token">9390e4e13ae2249a2ff5f0ede6fd2c52</string>
+    <string name="fb_login_protocol_scheme">fb1237170308217589</string>
 
-    <!-- Điền Google OAuth Web Client ID nếu cần dùng ở native (optional) -->
-    <string name="google_web_client_id"></string>
+    <!-- Google OAuth Web Client ID (used for Google Sign-In) -->
+    <string name="google_web_client_id">100891141743-5c4k87mq2gc9b6m775pck5451v0qglol.apps.googleusercontent.com</string>
+    <string name="default_web_client_id">100891141743-5c4k87mq2gc9b6m775pck5451v0qglol.apps.googleusercontent.com</string>
 </resources>

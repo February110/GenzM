@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/exceptions/app_exception.dart';
+import '../../core/services/logger_service.dart';
 import '../../core/services/token_provider.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../core/config/oauth_config.dart';
@@ -53,6 +55,7 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> loginWithGoogle({
     String? clientId,
   }) async {
+    final logger = _ref.read(loggerProvider);
     final googleClientId = clientId ?? OAuthConfig.googleClientId;
     if (googleClientId.isEmpty) {
       state = state.copyWith(
@@ -64,9 +67,11 @@ class AuthController extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     final googleSignIn = GoogleSignIn(
       serverClientId: googleClientId,
+      clientId: googleClientId,
       scopes: ['email', 'profile'],
     );
     try {
+      await googleSignIn.signOut(); // đảm bảo sạch phiên cũ trước khi đăng nhập
       final account = await googleSignIn.signIn();
       if (account == null) {
         state = state.copyWith(isLoading: false);
@@ -87,7 +92,19 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false, token: token);
     } on AppException catch (error) {
       state = state.copyWith(isLoading: false, errorMessage: error.message);
-    } catch (error) {
+    } on PlatformException catch (error, stackTrace) {
+      logger.log('Google sign-in failed', error: error, stackTrace: stackTrace);
+      final code = error.code.toLowerCase();
+      var message = 'Đăng nhập Google thất bại. Vui lòng thử lại.';
+      if (code == 'network_error') {
+        message = 'Không thể kết nối tới Google. Kiểm tra mạng và thử lại.';
+      } else if (code == 'sign_in_failed' || code == '10') {
+        message =
+            'Cấu hình Google Sign-In chưa hợp lệ. Kiểm tra SHA-1, package name và Client ID.';
+      }
+      state = state.copyWith(isLoading: false, errorMessage: message);
+    } catch (error, stackTrace) {
+      logger.log('Google sign-in unexpected error', error: error, stackTrace: stackTrace);
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Đăng nhập Google thất bại. Vui lòng thử lại.',
@@ -96,8 +113,10 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   Future<void> loginWithFacebook() async {
+    final logger = _ref.read(loggerProvider);
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
+      await FacebookAuth.instance.logOut(); // tránh dùng token cũ bị hết hạn
       final result = await FacebookAuth.instance.login(
         permissions: const ['email', 'public_profile'],
       );
@@ -127,7 +146,8 @@ class AuthController extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false, token: token);
     } on AppException catch (error) {
       state = state.copyWith(isLoading: false, errorMessage: error.message);
-    } catch (_) {
+    } catch (error, stackTrace) {
+      logger.log('Facebook sign-in failed', error: error, stackTrace: stackTrace);
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Đăng nhập Facebook thất bại. Vui lòng thử lại.',
