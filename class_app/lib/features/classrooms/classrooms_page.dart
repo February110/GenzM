@@ -74,12 +74,13 @@ class _ClassroomsPageState extends ConsumerState<ClassroomsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final state = ref.watch(classroomControllerProvider);
     final mode = state.filterMode;
     final filtered = _filterClassrooms(state.items, state.searchQuery, mode);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: theme.scaffoldBackgroundColor,
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF2563EB),
         onPressed: _showActionsSheet,
@@ -366,9 +367,10 @@ class _ClassroomsPageState extends ConsumerState<ClassroomsPage> {
   }
 
   void _showActionsSheet() {
+    final colorScheme = Theme.of(context).colorScheme;
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -413,6 +415,8 @@ class ClassroomDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final profile = ref.watch(profileControllerProvider);
     final detailAsync = ref.watch(classroomDetailProvider(classroomId));
 
@@ -454,7 +458,7 @@ class ClassroomDetailPage extends ConsumerWidget {
         return DefaultTabController(
           length: tabs.length,
           child: Scaffold(
-            backgroundColor: const Color(0xFFF6F6F8),
+            backgroundColor: theme.scaffoldBackgroundColor,
             body: NestedScrollView(
               headerSliverBuilder: (context, innerBoxIsScrolled) => [
                 SliverAppBar(
@@ -462,8 +466,8 @@ class ClassroomDetailPage extends ConsumerWidget {
                   floating: false,
                   snap: false,
                   elevation: 0,
-                  backgroundColor: Colors.white,
-                  surfaceTintColor: Colors.white,
+                  backgroundColor: colorScheme.surface,
+                  surfaceTintColor: colorScheme.surface,
                   leading: IconButton(
                     icon: const Icon(Icons.arrow_back),
                     onPressed: () => Navigator.of(context).pop(),
@@ -505,7 +509,7 @@ class ClassroomDetailPage extends ConsumerWidget {
                   pinned: true,
                   delegate: _TabBarHeaderDelegate(
                     child: Container(
-                      color: Colors.white,
+                      color: colorScheme.surface,
                       child: TabBar(
                         isScrollable: true,
                         tabAlignment: TabAlignment.start,
@@ -513,9 +517,9 @@ class ClassroomDetailPage extends ConsumerWidget {
                         labelPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
                         ),
-                        indicatorColor: const Color(0xFF135BEC),
-                        labelColor: const Color(0xFF135BEC),
-                        unselectedLabelColor: const Color(0xFF6B7280),
+                        indicatorColor: colorScheme.primary,
+                        labelColor: colorScheme.primary,
+                        unselectedLabelColor: colorScheme.onSurfaceVariant,
                         indicatorSize: TabBarIndicatorSize.label,
                         tabs: tabs,
                       ),

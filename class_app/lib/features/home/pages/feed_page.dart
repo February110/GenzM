@@ -37,6 +37,8 @@ class _FeedPageState extends ConsumerState<FeedPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final state = ref.watch(classroomControllerProvider);
     final profile = ref.watch(profileControllerProvider);
     final hubStatus = ref.watch(notificationHubManagerProvider);
@@ -58,10 +60,10 @@ class _FeedPageState extends ConsumerState<FeedPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: RefreshIndicator(
-          color: const Color(0xFF2563EB),
+          color: colorScheme.primary,
           onRefresh: () =>
               Future.wait([
                 ref.read(classroomControllerProvider.notifier).fetchClassrooms(),
@@ -125,12 +127,12 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Lớp học của tôi',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF111827),
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       TextButton(
@@ -153,10 +155,12 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                   child: state.isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : classes.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
                             'Chưa có lớp nào, hãy tham gia hoặc tạo lớp.',
-                            style: TextStyle(color: Color(0xFF6B7280)),
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         )
                       : ListView.separated(
@@ -191,13 +195,13 @@ class _FeedPageState extends ConsumerState<FeedPage> {
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
+                    children: [
                       Text(
                         'Nhiệm vụ sắp tới',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF111827),
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ],
@@ -249,10 +253,11 @@ class _HeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -275,10 +280,10 @@ class _HeaderCard extends StatelessWidget {
               children: [
                 Text(
                   'Chào buổi sáng, $name!',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
-                    color: Color(0xFF111827),
+                    color: colorScheme.onSurface,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -286,8 +291,8 @@ class _HeaderCard extends StatelessWidget {
                   isLoading
                       ? 'Đang tải lớp học...'
                       : 'Chúc bạn một ngày học tập hiệu quả',
-                  style: const TextStyle(
-                    color: Color(0xFF6B7280),
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
                     fontSize: 13,
                   ),
                 ),
@@ -299,9 +304,9 @@ class _HeaderCard extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: onBellTap,
-                icon: const Icon(
+                icon: Icon(
                   Icons.notifications_none,
-                  color: Color(0xFF111827),
+                  color: colorScheme.onSurface,
                 ),
               ),
               if (unreadCount > 0)
@@ -342,6 +347,7 @@ class _AvatarCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final resolved = AppConfig.resolveAssetUrl(avatarUrl ?? '');
     final isSvg = AppConfig.isSvgUrl(resolved);
     final hasAvatar = resolved.isNotEmpty;
@@ -350,7 +356,7 @@ class _AvatarCircle extends StatelessWidget {
     if (hasAvatar && isSvg) {
       return CircleAvatar(
         radius: radius,
-        backgroundColor: const Color(0xFFE0ECFF),
+        backgroundColor: colorScheme.primaryContainer,
         child: ClipOval(
           child: SvgPicture.network(
             resolved,
@@ -364,15 +370,15 @@ class _AvatarCircle extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFFE0ECFF),
+      backgroundColor: colorScheme.primaryContainer,
       backgroundImage: hasAvatar ? NetworkImage(resolved) : null,
       child: hasAvatar
           ? null
           : Text(
               initial,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
+                color: colorScheme.onPrimaryContainer,
               ),
             ),
     );
@@ -441,12 +447,13 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
         constraints: const BoxConstraints(minHeight: 120),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
@@ -470,28 +477,31 @@ class _StatCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             isLoading
-                ? const SizedBox(
+                ? SizedBox(
                     height: 18,
                     width: 36,
                     child: LinearProgressIndicator(
                       minHeight: 6,
                       borderRadius: BorderRadius.all(Radius.circular(8)),
-                      color: Color(0xFFCBD5E1),
-                      backgroundColor: Color(0xFFF1F5F9),
+                      color: colorScheme.primary.withValues(alpha: 0.4),
+                      backgroundColor: colorScheme.surfaceVariant,
                     ),
                   )
                 : Text(
                     value,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827),
+                      color: colorScheme.onSurface,
                     ),
                   ),
             const SizedBox(height: 6),
             Text(
               label,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+              style: TextStyle(
+                fontSize: 13,
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
@@ -508,13 +518,14 @@ class _ClassCardHorizontal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: 220,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -534,10 +545,10 @@ class _ClassCardHorizontal extends StatelessWidget {
                 cls.name,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF111827),
+                  color: colorScheme.onSurface,
                 ),
               ),
             ),
@@ -547,7 +558,10 @@ class _ClassCardHorizontal extends StatelessWidget {
                 cls.section ?? cls.description ?? 'Giáo viên: —',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
           ],
@@ -564,6 +578,7 @@ class _BannerThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final url = AppConfig.resolveAssetUrl(bannerUrl);
     final isSvg = AppConfig.isSvgUrl(bannerUrl ?? url);
     final hasBanner = url.isNotEmpty;
@@ -575,7 +590,9 @@ class _BannerThumb extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
         child: Stack(
           children: [
-            Positioned.fill(child: Container(color: const Color(0xFFEEF2FF))),
+            Positioned.fill(
+              child: Container(color: colorScheme.surfaceVariant),
+            ),
             if (hasBanner && !isSvg)
               Positioned.fill(
                 child: Image.network(
@@ -605,7 +622,7 @@ class _BannerThumb extends StatelessWidget {
               Positioned.fill(
                 child: SvgPicture.asset(fallbackAsset, fit: BoxFit.cover),
               ),
-            Container(color: Colors.white.withValues(alpha: 0.04)),
+            Container(color: colorScheme.onSurface.withValues(alpha: 0.04)),
           ],
         ),
       ),
@@ -618,6 +635,7 @@ class _TaskPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Column(
@@ -626,7 +644,7 @@ class _TaskPlaceholder extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: colorScheme.surface,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
@@ -637,13 +655,16 @@ class _TaskPlaceholder extends StatelessWidget {
               ],
             ),
             child: Row(
-              children: const [
-                Icon(Icons.hourglass_empty, color: Color(0xFF2563EB)),
-                SizedBox(width: 12),
+              children: [
+                Icon(Icons.hourglass_empty, color: colorScheme.primary),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Chưa có nhiệm vụ sắp tới nào.',
-                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
               ],
@@ -723,6 +744,7 @@ class _TaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final due = task.assignment.dueAt?.toLocal();
     final dueText = due != null
         ? DateFormat('HH:mm dd/MM').format(due)
@@ -733,7 +755,7 @@ class _TaskCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
@@ -748,10 +770,13 @@ class _TaskCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFE5EDFF),
+                color: colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.assignment_outlined, color: Color(0xFF2563EB)),
+              child: Icon(
+                Icons.assignment_outlined,
+                color: colorScheme.primary,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -762,27 +787,31 @@ class _TaskCard extends StatelessWidget {
                     task.assignment.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF111827),
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     task.classroom.name,
-                    style: const TextStyle(
-                      color: Color(0xFF2563EB),
+                    style: TextStyle(
+                      color: colorScheme.primary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.access_time, size: 14, color: Color(0xFF6B7280)),
+                      Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         'Hạn: $dueText',
-                        style: const TextStyle(color: Color(0xFF6B7280)),
+                        style: TextStyle(color: colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),

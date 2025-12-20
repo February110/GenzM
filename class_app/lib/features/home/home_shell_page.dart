@@ -40,6 +40,8 @@ class _HomeShellPageState extends ConsumerState<HomeShellPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     ref.listen(profileControllerProvider, (prev, next) {
       if (next.user != null) {
         ref.read(notificationHubManagerProvider.notifier).ensureStarted();
@@ -77,8 +79,9 @@ class _HomeShellPageState extends ConsumerState<HomeShellPage> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF2563EB),
-        unselectedItemColor: const Color(0xFF9CA3AF),
+        backgroundColor: colorScheme.surface,
+        selectedItemColor: colorScheme.primary,
+        unselectedItemColor: colorScheme.onSurfaceVariant,
         onTap: (value) => setState(() => _index = value),
         items: const [
           BottomNavigationBarItem(

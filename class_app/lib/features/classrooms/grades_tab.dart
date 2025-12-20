@@ -19,9 +19,17 @@ class GradesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (assignments.isEmpty) {
-      return const Center(child: Text('Chưa có bài tập để chấm điểm.'));
+      final colorScheme = Theme.of(context).colorScheme;
+      return Center(
+        child: Text(
+          'Chưa có bài tập để chấm điểm.',
+          style: TextStyle(color: colorScheme.onSurfaceVariant),
+        ),
+      );
     }
 
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return ListView.separated(
       padding: const EdgeInsets.all(12),
       itemCount: assignments.length,
@@ -32,8 +40,11 @@ class GradesTab extends ConsumerWidget {
             ref.watch(submissionsByAssignmentProvider(assignment.id));
         return Card(
           elevation: 0,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          color: colorScheme.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: theme.dividerColor),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -44,17 +55,18 @@ class GradesTab extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         assignment.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                     ),
                     if (assignment.maxPoints != null)
                       Text(
                         'Tối đa: ${assignment.maxPoints}',
-                        style: const TextStyle(
-                          color: Color(0xFF6B7280),
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
                           fontSize: 12.5,
                         ),
                       ),
@@ -64,8 +76,8 @@ class GradesTab extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     'Hạn: ${DateFormat('HH:mm dd/MM/yyyy').format(assignment.dueAt!.toLocal())}',
-                    style: const TextStyle(
-                      color: Color(0xFF6B7280),
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant,
                       fontSize: 12.5,
                     ),
                   ),
@@ -74,9 +86,9 @@ class GradesTab extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF9FAFB),
+                    color: colorScheme.surfaceVariant,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                    border: Border.all(color: theme.dividerColor),
                   ),
                   child: submissions.when(
                     loading: () => const SizedBox(
@@ -85,15 +97,17 @@ class GradesTab extends ConsumerWidget {
                     ),
                     error: (error, _) => Text(
                       error.toString(),
-                      style: const TextStyle(color: Colors.red),
+                      style: TextStyle(color: colorScheme.error),
                     ),
                     data: (items) {
                       if (items.isEmpty) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 6),
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
                           child: Text(
                             'Chưa có bài nộp.',
-                            style: TextStyle(color: Color(0xFF6B7280)),
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         );
                       }
@@ -127,6 +141,7 @@ class _SubmissionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final name = submission.studentName?.isNotEmpty == true
         ? submission.studentName!
         : submission.email ?? 'Học viên';
@@ -143,11 +158,11 @@ class _SubmissionRow extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor: const Color(0xFFE0ECFF),
+            backgroundColor: colorScheme.primaryContainer,
             child: Text(
               initials,
-              style: const TextStyle(
-                color: Color(0xFF2563EB),
+              style: TextStyle(
+                color: colorScheme.primary,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -159,16 +174,17 @@ class _SubmissionRow extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Nộp lúc: $subtitle',
-                  style: const TextStyle(
-                    color: Color(0xFF6B7280),
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
                     fontSize: 12,
                   ),
                 ),
@@ -180,17 +196,17 @@ class _SubmissionRow extends StatelessWidget {
             children: [
               Text(
                 gradeText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF111827),
+                  color: colorScheme.onSurface,
                 ),
               ),
               if (maxPoints != null)
                 Text(
                   '/$maxPoints',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF6B7280),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
             ],

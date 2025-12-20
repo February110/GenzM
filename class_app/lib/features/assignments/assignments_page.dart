@@ -23,6 +23,8 @@ class AssignmentsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final state = ref.watch(assignmentsControllerProvider(classroomId));
     final notifier = ref.read(
       assignmentsControllerProvider(classroomId).notifier,
@@ -88,7 +90,7 @@ class AssignmentsPage extends ConsumerWidget {
               children: [
                 Text(
                   state.errorMessage!,
-                  style: const TextStyle(color: Colors.red),
+                  style: TextStyle(color: colorScheme.error),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
@@ -102,9 +104,14 @@ class AssignmentsPage extends ConsumerWidget {
         );
       } else if (state.items.isEmpty) {
         items.add(
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 80),
-            child: Center(child: Text('Chưa có bài tập.')),
+            child: Center(
+              child: Text(
+                'Chưa có bài tập.',
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              ),
+            ),
           ),
         );
       } else {
@@ -150,7 +157,7 @@ class AssignmentsPage extends ConsumerWidget {
     return Stack(
       children: [
         RefreshIndicator(
-          color: const Color(0xFF2563EB),
+          color: colorScheme.primary,
           onRefresh: () => notifier.load(classroomId),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -167,7 +174,7 @@ class AssignmentsPage extends ConsumerWidget {
               width: 56,
               child: FloatingActionButton(
                 heroTag: 'create-assignment-fab',
-                backgroundColor: const Color(0xFF2563EB),
+                backgroundColor: colorScheme.primary,
                 shape: const StadiumBorder(),
                 onPressed: () => _showCreateBottomSheet(
                   context,
@@ -175,7 +182,11 @@ class AssignmentsPage extends ConsumerWidget {
                   ref,
                   classroomName: detail?.name,
                 ),
-                child: const Icon(Icons.add, color: Colors.white, size: 28),
+                child: Icon(
+                  Icons.add,
+                  color: colorScheme.onPrimary,
+                  size: 28,
+                ),
               ),
             ),
           ),
@@ -213,6 +224,7 @@ class AssignmentsPage extends ConsumerWidget {
       isScrollControlled: true,
       builder: (ctx) {
         final theme = Theme.of(ctx);
+        final colorScheme = theme.colorScheme;
         return StatefulBuilder(
           builder: (ctx, setState) {
             final aiRepo = ref.read(aiRepositoryProvider);
@@ -402,7 +414,7 @@ class AssignmentsPage extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           filled: true,
-                          fillColor: const Color(0xFFF6F7FB),
+                          fillColor: colorScheme.surfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -422,7 +434,7 @@ class AssignmentsPage extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           filled: true,
-                          fillColor: const Color(0xFFF6F7FB),
+                          fillColor: colorScheme.surfaceVariant,
                         ),
                         minLines: 4,
                         maxLines: 6,
@@ -431,9 +443,9 @@ class AssignmentsPage extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: colorScheme.surface,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: theme.dividerColor),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -445,12 +457,13 @@ class AssignmentsPage extends ConsumerWidget {
                                   width: 34,
                                   height: 34,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                                    color:
+                                        colorScheme.primary.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.auto_awesome,
-                                    color: Color(0xFF2563EB),
+                                    color: colorScheme.primary,
                                     size: 20,
                                   ),
                                 ),
@@ -466,10 +479,10 @@ class AssignmentsPage extends ConsumerWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 4),
-                                      const Text(
+                                      Text(
                                         'AI sẽ dựa trên nội dung bạn nhập để sinh câu hỏi 4 lựa chọn, phù hợp để chèn vào mô tả.',
                                         style: TextStyle(
-                                          color: Color(0xFF6B7280),
+                                          color: colorScheme.onSurfaceVariant,
                                           fontSize: 13,
                                         ),
                                       ),
@@ -496,7 +509,7 @@ class AssignmentsPage extends ConsumerWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 filled: true,
-                                fillColor: Colors.white,
+                                fillColor: colorScheme.surface,
                               ),
                               minLines: 3,
                               maxLines: 5,
@@ -513,7 +526,7 @@ class AssignmentsPage extends ConsumerWidget {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       filled: true,
-                                      fillColor: Colors.white,
+                                      fillColor: colorScheme.surface,
                                     ),
                                     keyboardType: TextInputType.number,
                                   ),
@@ -522,8 +535,8 @@ class AssignmentsPage extends ConsumerWidget {
                                 ElevatedButton.icon(
                                   onPressed: isGeneratingQuiz ? null : generateQuiz,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF2563EB),
-                                    foregroundColor: Colors.white,
+                                    backgroundColor: colorScheme.primary,
+                                    foregroundColor: colorScheme.onPrimary,
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 14,
                                       vertical: 14,
@@ -531,12 +544,12 @@ class AssignmentsPage extends ConsumerWidget {
                                     shape: const StadiumBorder(),
                                   ),
                                   icon: isGeneratingQuiz
-                                      ? const SizedBox(
+                                      ? SizedBox(
                                           width: 18,
                                           height: 18,
                                           child: CircularProgressIndicator(
                                             strokeWidth: 2,
-                                            color: Colors.white,
+                                            color: colorScheme.onPrimary,
                                           ),
                                         )
                                       : const Icon(Icons.playlist_add_check),
@@ -548,8 +561,8 @@ class AssignmentsPage extends ConsumerWidget {
                               const SizedBox(height: 8),
                               Text(
                                 aiError!,
-                                style: const TextStyle(
-                                  color: Colors.red,
+                                style: TextStyle(
+                                  color: colorScheme.error,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -589,21 +602,25 @@ class AssignmentsPage extends ConsumerWidget {
                         ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
-                          color: const Color(0xFFF6F7FB),
+                          border: Border.all(color: theme.dividerColor),
+                          color: colorScheme.surfaceVariant,
                         ),
                         child: Row(
                           children: [
                             Expanded(
                               child: Text(
                                 classroomName ?? 'Lớp hiện tại',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF0F172A),
+                                  color: colorScheme.onSurface,
                                 ),
                               ),
                             ),
-                            const Icon(Icons.lock, size: 18),
+                            Icon(
+                              Icons.lock,
+                              size: 18,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                           ],
                         ),
                       ),
@@ -625,8 +642,8 @@ class AssignmentsPage extends ConsumerWidget {
                           ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
-                            color: const Color(0xFFF6F7FB),
+                            border: Border.all(color: theme.dividerColor),
+                            color: colorScheme.surfaceVariant,
                           ),
                           child: Row(
                             children: [
@@ -635,15 +652,16 @@ class AssignmentsPage extends ConsumerWidget {
                                   dueLabel(),
                                   style: TextStyle(
                                     color: selectedDue == null
-                                        ? const Color(0xFF9CA3AF)
-                                        : const Color(0xFF0F172A),
+                                        ? colorScheme.onSurfaceVariant
+                                        : colorScheme.onSurface,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
-                              const Icon(
+                              Icon(
                                 Icons.calendar_today_outlined,
                                 size: 18,
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ],
                           ),
@@ -665,7 +683,7 @@ class AssignmentsPage extends ConsumerWidget {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           filled: true,
-                          fillColor: const Color(0xFFF6F7FB),
+                          fillColor: colorScheme.surfaceVariant,
                         ),
                         keyboardType: TextInputType.number,
                       ),
@@ -687,17 +705,17 @@ class AssignmentsPage extends ConsumerWidget {
                                 vertical: 12,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: colorScheme.surface,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: const Color(0xFFE5E7EB),
+                                  color: theme.dividerColor,
                                 ),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.insert_drive_file,
-                                    color: Color(0xFF2563EB),
+                                    color: colorScheme.primary,
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
@@ -705,13 +723,17 @@ class AssignmentsPage extends ConsumerWidget {
                                       f.name,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w700,
+                                        color: colorScheme.onSurface,
                                       ),
                                     ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline),
+                                    icon: Icon(
+                                      Icons.delete_outline,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
                                     onPressed: () {
                                       setState(() {
                                         attachments = attachments
@@ -836,6 +858,8 @@ class AssignmentCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final status = _buildStatus(submissionsAsync, item.id);
     final dueText = _formatDue(item.dueAt);
 
@@ -846,9 +870,9 @@ class AssignmentCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(18),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE8EDF3)),
+            border: Border.all(color: theme.dividerColor),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x0F0F172A),
@@ -890,10 +914,10 @@ class AssignmentCard extends ConsumerWidget {
                                     item.title,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF0F172A),
+                                      color: colorScheme.onSurface,
                                     ),
                                   ),
                                 ),
@@ -905,10 +929,10 @@ class AssignmentCard extends ConsumerWidget {
                                       minWidth: 36,
                                       minHeight: 36,
                                     ),
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.more_vert,
                                       size: 20,
-                                      color: Color(0xFF6B7280),
+                                      color: colorScheme.onSurfaceVariant,
                                     ),
                                     onSelected: (action) {
                                       switch (action) {
@@ -957,9 +981,9 @@ class AssignmentCard extends ConsumerWidget {
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 'Tối đa: ${item.maxPoints} điểm',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13,
-                                  color: Color(0xFF6B7280),
+                                  color: colorScheme.onSurfaceVariant,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -973,11 +997,7 @@ class AssignmentCard extends ConsumerWidget {
 
               const Padding(
                 padding: EdgeInsets.only(left: 6),
-                child: Divider(
-                  color: Color(0xFFE5E7EB),
-                  height: 1,
-                  thickness: 1,
-                ),
+                child: Divider(height: 1, thickness: 1),
               ),
 
               const SizedBox(height: 6),
@@ -1030,31 +1050,34 @@ class _AiQuizPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final options = item.options;
     final explanation = item.explanation?.trim();
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Câu ${index + 1}: ${item.question}',
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 14.5,
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           if (options.isEmpty)
-            const Text(
+            Text(
               'AI chưa trả về phương án.',
-              style: TextStyle(color: Color(0xFF9CA3AF)),
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
             )
           else
             ...options.asMap().entries.map(
@@ -1067,16 +1090,16 @@ class _AiQuizPreview extends StatelessWidget {
                   children: [
                     Text(
                       '${String.fromCharCode(65 + entry.key)}. ',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF475569),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                     Expanded(
                       child: Text(
                         entry.value,
-                        style: const TextStyle(
-                          color: Color(0xFF0F172A),
+                        style: TextStyle(
+                          color: colorScheme.onSurface,
                           fontSize: 13.2,
                         ),
                       ),
@@ -1089,8 +1112,8 @@ class _AiQuizPreview extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               'Đáp án: ${item.answer}',
-              style: const TextStyle(
-                color: Color(0xFF0EA5E9),
+              style: TextStyle(
+                color: colorScheme.primary,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -1099,8 +1122,8 @@ class _AiQuizPreview extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Giải thích: $explanation',
-              style: const TextStyle(
-                color: Color(0xFF6B7280),
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
                 fontSize: 13,
                 height: 1.25,
               ),
@@ -1140,6 +1163,7 @@ class _StatusFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InkWell(
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
@@ -1147,18 +1171,18 @@ class _StatusFilterChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: selected
-              ? const Color(0xFF2563EB).withValues(alpha: 0.12)
-              : const Color(0xFFF8FAFC),
+              ? colorScheme.primary.withValues(alpha: 0.12)
+              : colorScheme.surfaceVariant,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+            color: selected ? colorScheme.primary : colorScheme.outlineVariant,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            color: selected ? const Color(0xFF2563EB) : const Color(0xFF0F172A),
+            color: selected ? colorScheme.primary : colorScheme.onSurface,
             fontSize: 14,
           ),
         ),

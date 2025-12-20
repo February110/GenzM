@@ -6,7 +6,6 @@ import '../../data/models/notification_model.dart';
 import '../assignments/assignment_detail_page.dart';
 import '../classrooms/classrooms_page.dart';
 import 'notifications_controller.dart';
-import '../../data/models/notification_model.dart';
 
 class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
@@ -26,6 +25,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final state = ref.watch(notificationsControllerProvider);
 
     return Scaffold(
@@ -34,26 +35,26 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
           'Thông báo',
           style: TextStyle(
             fontWeight: FontWeight.w800,
-            color: Color(0xFF111827),
           ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-          color: const Color(0xFF111827),
           onPressed: () => Navigator.of(context).pop(),
         ),
         actions: [
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.search, color: Color(0xFF111827)),
+            icon: Icon(Icons.search, color: colorScheme.onSurface),
           ),
         ],
       ),
-      backgroundColor: const Color(0xFFF8FAFF),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: RefreshIndicator(
+        color: colorScheme.primary,
         onRefresh: () => ref.read(notificationsControllerProvider.notifier).load(),
         child: state.isLoading && state.items.isEmpty
             ? const Center(child: CircularProgressIndicator())
@@ -66,11 +67,11 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                     return Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: state.unread > 0
-                            ? () => ref
-                                .read(notificationsControllerProvider.notifier)
-                                .markAllRead()
-                            : null,
+                      onPressed: state.unread > 0
+                          ? () => ref
+                              .read(notificationsControllerProvider.notifier)
+                              .markAllRead()
+                          : null,
                         child: const Text('Đánh dấu tất cả đã đọc'),
                       ),
                     );
@@ -79,7 +80,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                   final palette = _paletteForType(item.type);
                   final action = _actionForType(item.type);
                   return Material(
-                    color: Colors.white,
+                    color: colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(12),
@@ -113,32 +114,35 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                               item.title.isNotEmpty
                                                   ? item.title
                                                   : 'Thông báo mới',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.w800,
-                                                color: Color(0xFF0F172A),
+                                                color: colorScheme.onSurface,
                                               ),
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
                                             _formatRelative(item.createdAt),
-                                            style: const TextStyle(
-                                              color: Color(0xFF6B7280),
+                                            style: TextStyle(
+                                              color: colorScheme.onSurfaceVariant,
                                               fontSize: 12,
                                             ),
                                           ),
                                           const SizedBox(width: 4),
                                           if (!item.isRead)
-                                            const Icon(Icons.brightness_1,
-                                                color: Color(0xFF2563EB), size: 8),
+                                            Icon(
+                                              Icons.brightness_1,
+                                              color: colorScheme.primary,
+                                              size: 8,
+                                            ),
                                         ],
                                       ),
                                       const SizedBox(height: 4),
                                       if (item.message.isNotEmpty)
                                         Text(
                                           item.message,
-                                          style: const TextStyle(
-                                            color: Color(0xFF4B5563),
+                                          style: TextStyle(
+                                            color: colorScheme.onSurfaceVariant,
                                             fontSize: 13,
                                             height: 1.3,
                                           ),

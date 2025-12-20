@@ -36,6 +36,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     // Lọc chỉ học viên (bỏ role teacher)
     final studentMembers = widget.members
         .where((m) => (m.role ?? '').toLowerCase() != 'teacher')
@@ -68,33 +70,39 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     final canGrade = showSubmitted && filteredSubmitted.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
           widget.assignment.title,
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
         elevation: 0.5,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _headerCard(),
+          _headerCard(context),
           const SizedBox(height: 12),
           _sectionTitle(
+            context,
             'Danh sách lớp',
             count: studentMembers.length,
             trailing: widget.classroomName,
           ),
           const SizedBox(height: 8),
-          _chips(submittedCount: submitted.length, pendingCount: pendingCount),
+          _chips(
+            context,
+            submittedCount: submitted.length,
+            pendingCount: pendingCount,
+          ),
           const SizedBox(height: 12),
           if (submitted.isEmpty && pendingCount == 0)
-            const Center(
+            Center(
               child: Text(
                 'Chưa có học viên trong lớp.',
-                style: TextStyle(color: Color(0xFF6B7280)),
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
               ),
             )
           else ...[
@@ -111,9 +119,9 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
             const SizedBox(height: 12),
             if (showSubmitted) ...[
               if (submitted.isEmpty)
-                const Text(
+                Text(
                   'Chưa có bài đã nộp.',
-                  style: TextStyle(color: Color(0xFF6B7280)),
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
                 )
               else
                 Column(
@@ -123,61 +131,67 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                 ),
             ] else ...[
               if (pendingMembers.isEmpty)
-                const Text(
+                Text(
                   'Không còn học viên chưa nộp.',
-                  style: TextStyle(color: Color(0xFF6B7280)),
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
                 )
               else
-                Column(children: filteredPending.map(_pendingTile).toList()),
+                Column(
+                  children: filteredPending
+                      .map((member) => _pendingTile(context, member))
+                      .toList(),
+                ),
             ],
           ],
           const SizedBox(height: 24),
-          _sectionTitle('Đánh giá & Phản hồi'),
+          _sectionTitle(context, 'Đánh giá & Phản hồi'),
           const SizedBox(height: 8),
-          _gradingBox(canGrade),
+          _gradingBox(context, canGrade),
           const SizedBox(height: 24),
         ],
       ),
-      bottomNavigationBar: _actionsBar(canGrade),
+      bottomNavigationBar: _actionsBar(context, canGrade),
     );
   }
 
-  Widget _headerCard() {
+  Widget _headerCard(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final due = widget.assignment.dueAt != null
         ? 'Hạn: ${widget.assignment.dueAt!.toLocal().toString().substring(0, 16)}'
         : 'Không hạn';
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             widget.assignment.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF0F172A),
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 6),
           if (widget.assignment.maxPoints != null)
             Text(
               'Tối đa: ${widget.assignment.maxPoints} điểm',
-              style: const TextStyle(
-                color: Color(0xFF475569),
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
           const SizedBox(height: 4),
           Text(
             due,
-            style: const TextStyle(
-              color: Color(0xFFDC2626),
+            style: TextStyle(
+              color: colorScheme.error,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -186,19 +200,29 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     );
   }
 
-  Widget _sectionTitle(String title, {String? trailing, int? count}) {
+  Widget _sectionTitle(
+    BuildContext context,
+    String title, {
+    String? trailing,
+    int? count,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 16,
+            color: colorScheme.onSurface,
+          ),
         ),
         if (count != null) ...[
           const SizedBox(width: 6),
           Text(
             '($count)',
-            style: const TextStyle(
-              color: Color(0xFF6B7280),
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w800,
               fontSize: 13,
             ),
@@ -208,8 +232,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         if (trailing != null)
           Text(
             trailing,
-            style: const TextStyle(
-              color: Color(0xFF6B7280),
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -217,11 +241,16 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     );
   }
 
-  Widget _chips({required int submittedCount, required int pendingCount}) {
+  Widget _chips(
+    BuildContext context, {
+    required int submittedCount,
+    required int pendingCount,
+  }) {
     return Row(
       children: [
         Expanded(
           child: _chip(
+            context,
             label: 'Đã nộp',
             count: submittedCount,
             selected: showSubmitted,
@@ -231,6 +260,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         const SizedBox(width: 8),
         Expanded(
           child: _chip(
+            context,
             label: 'Chưa nộp',
             count: pendingCount,
             selected: !showSubmitted,
@@ -241,12 +271,15 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     );
   }
 
-  Widget _chip({
+  Widget _chip(
+    BuildContext context, {
     required String label,
     required int count,
     required bool selected,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
@@ -254,11 +287,11 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: selected
-              ? const Color(0xFF2563EB).withValues(alpha: 0.08)
-              : Colors.white,
+              ? colorScheme.primary.withValues(alpha: 0.12)
+              : colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? const Color(0xFF2563EB) : const Color(0xFFE5E7EB),
+            color: selected ? colorScheme.primary : theme.dividerColor,
           ),
         ),
         child: Row(
@@ -267,9 +300,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
             Text(
               label,
               style: TextStyle(
-                color: selected
-                    ? const Color(0xFF2563EB)
-                    : const Color(0xFF0F172A),
+                color:
+                    selected ? colorScheme.primary : colorScheme.onSurface,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -278,16 +310,16 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: selected
-                    ? const Color(0xFF2563EB).withValues(alpha: 0.1)
-                    : const Color(0xFFF1F5F9),
+                    ? colorScheme.primary.withValues(alpha: 0.12)
+                    : colorScheme.surfaceVariant,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 count.toString(),
                 style: TextStyle(
                   color: selected
-                      ? const Color(0xFF2563EB)
-                      : const Color(0xFF475569),
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w800,
                   fontSize: 12,
                 ),
@@ -304,6 +336,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     SubmissionWithGradeModel sub,
     bool submitted,
   ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final name = sub.studentName ?? 'Học viên';
     final at = DateFormat('HH:mm dd/MM').format(sub.submittedAt.toLocal());
     final fileName = (sub.fileKey ?? '').split('/').last;
@@ -314,9 +348,9 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,9 +359,9 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
             children: [
               Text(
                 name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: colorScheme.onSurface,
                 ),
               ),
               const Spacer(),
@@ -335,16 +369,16 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: submitted
-                      ? const Color(0xFF22C55E).withValues(alpha: 0.12)
-                      : const Color(0xFFFEE2E2),
+                      ? colorScheme.primary.withValues(alpha: 0.12)
+                      : colorScheme.errorContainer,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   submitted ? 'Đã nộp' : 'Chưa nộp',
                   style: TextStyle(
                     color: submitted
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFDC2626),
+                        ? colorScheme.primary
+                        : colorScheme.error,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
@@ -355,7 +389,10 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
           const SizedBox(height: 6),
           Text(
             submitted ? 'Nộp lúc $at' : 'Chưa nộp',
-            style: const TextStyle(fontSize: 12.5, color: Color(0xFF6B7280)),
+            style: TextStyle(
+              fontSize: 12.5,
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
           if (submitted) ...[
             const SizedBox(height: 10),
@@ -363,12 +400,15 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-                color: const Color(0xFFF8FAFC),
+                border: Border.all(color: theme.dividerColor),
+                color: colorScheme.surfaceVariant,
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.insert_drive_file, color: Color(0xFF2563EB)),
+                  Icon(
+                    Icons.insert_drive_file,
+                    color: colorScheme.primary,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -378,26 +418,26 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                           fileName.isNotEmpty ? fileName : 'Bài nộp',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F172A),
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         if (sizeLabel.isNotEmpty)
                           Text(
                             sizeLabel,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF64748B),
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.visibility,
-                      color: Color(0xFF2563EB),
+                      color: colorScheme.primary,
                     ),
                     onPressed: sub.id.isEmpty
                         ? null
@@ -437,7 +477,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                         );
                       },
                 style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF2563EB),
+                  foregroundColor: colorScheme.primary,
                 ),
                 icon: const Icon(Icons.chat_bubble_outline, size: 18),
                 label: const Text(
@@ -452,7 +492,9 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     );
   }
 
-  Widget _gradingBox(bool enabled) {
+  Widget _gradingBox(BuildContext context, bool enabled) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final maxPoints = widget.assignment.maxPoints ?? 100;
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 150),
@@ -461,15 +503,18 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFFFFF), Color(0xFFF8FBFF)],
+          gradient: LinearGradient(
+            colors: [
+              colorScheme.surface,
+              colorScheme.surfaceVariant,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-          boxShadow: const [
+          border: Border.all(color: theme.dividerColor),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x11000000),
+              color: theme.shadowColor.withValues(alpha: 0.2),
               blurRadius: 10,
               offset: Offset(0, 4),
             ),
@@ -486,17 +531,13 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                   children: [
                     const Text(
                       'Điểm số',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
-                        color: Color(0xFF0F172A),
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Thang điểm $maxPoints',
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -510,22 +551,22 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                     enabled: enabled,
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF2563EB),
+                      color: colorScheme.primary,
                     ),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: colorScheme.surface,
                       contentPadding: const EdgeInsets.symmetric(vertical: 6),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF2563EB),
+                        borderSide: BorderSide(
+                          color: colorScheme.primary,
                           width: 1.2,
                         ),
                       ),
@@ -535,8 +576,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                 const SizedBox(width: 8),
                 Text(
                   '/$maxPoints',
-                  style: const TextStyle(
-                    color: Color(0xFF94A3B8),
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
                     fontSize: 18,
                   ),
@@ -547,18 +588,18 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
               Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: Row(
-                  children: const [
+                  children: [
                     Icon(
                       Icons.lock_outline,
                       size: 16,
-                      color: Color(0xFF94A3B8),
+                      color: colorScheme.onSurfaceVariant,
                     ),
-                    SizedBox(width: 6),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Chỉ nhập điểm khi học viên đã nộp bài.',
                         style: TextStyle(
-                          color: Color(0xFF94A3B8),
+                          color: colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
@@ -569,15 +610,15 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
               ),
             const SizedBox(height: 18),
             Row(
-              children: const [
-                Icon(Icons.chat_bubble_outline, color: Color(0xFF2563EB)),
-                SizedBox(width: 8),
+              children: [
+                Icon(Icons.chat_bubble_outline, color: colorScheme.primary),
+                const SizedBox(width: 8),
                 Text(
                   'Nhận xét',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
-                    color: Color(0xFF0F172A),
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -590,24 +631,24 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                 hintText: 'Nhập nhận xét cho học viên...',
                 alignLabelWithHint: true,
                 filled: true,
-                fillColor: const Color(0xFFF8FAFC),
+                fillColor: colorScheme.surfaceVariant,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF2563EB),
+                  borderSide: BorderSide(
+                    color: colorScheme.primary,
                     width: 1.2,
                   ),
                 ),
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Hãy giữ nhận xét ngắn gọn, cụ thể hành động để học viên cải thiện.',
               style: TextStyle(
-                color: Color(0xFF6B7280),
+                color: colorScheme.onSurfaceVariant,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -618,14 +659,16 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     );
   }
 
-  Widget _actionsBar(bool enabled) {
+  Widget _actionsBar(BuildContext context, bool enabled) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Color(0x11000000),
+            color: theme.shadowColor.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: Offset(0, -3),
           ),
@@ -638,12 +681,12 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
               onPressed: enabled ? () {} : null,
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                side: const BorderSide(color: Color(0xFFE5E7EB)),
+                side: BorderSide(color: theme.dividerColor),
               ),
-              child: const Text(
+              child: Text(
                 'Lưu nháp',
                 style: TextStyle(
-                  color: Color(0xFF0F172A),
+                  color: colorScheme.onSurface,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -654,7 +697,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
             child: ElevatedButton.icon(
               onPressed: enabled ? () {} : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: const StadiumBorder(),
               ),
@@ -676,6 +720,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     String? selectedStudentId,
     required ValueChanged<String> onSelect,
   }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final studentMembers = widget.members
         .where((m) => (m.role ?? '').toLowerCase() != 'teacher')
         .where(
@@ -709,22 +755,27 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: isSelected
-                                ? const Color(0xFF2563EB)
-                                : Colors.white,
+                                ? colorScheme.primary
+                                : theme.dividerColor,
                             width: isSelected ? 3 : 2,
                           ),
                         ),
                         child: CircleAvatar(
                           radius: 28,
                           backgroundColor: isSelected
-                              ? const Color(0xFF2563EB)
-                              : const Color(0xFFE5E7EB),
+                              ? colorScheme.primary
+                              : colorScheme.surfaceVariant,
                           child: CircleAvatar(
                             radius: 25,
                             backgroundColor: isSelected
-                                ? const Color(0xFFDBEAFE)
-                                : const Color(0xFFFDFDFD),
-                            child: _avatarImage(m.avatar, name, submitted),
+                                ? colorScheme.primaryContainer
+                                : colorScheme.surface,
+                            child: _avatarImage(
+                              context,
+                              m.avatar,
+                              name,
+                              submitted,
+                            ),
                           ),
                         ),
                       ),
@@ -739,7 +790,10 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                           decoration: BoxDecoration(
                             color: const Color(0xFF22C55E),
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                            border: Border.all(
+                              color: colorScheme.surface,
+                              width: 2,
+                            ),
                           ),
                           child: const Icon(
                             Icons.check,
@@ -758,10 +812,10 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: colorScheme.onSurface,
                     ),
                   ),
                 ),
@@ -773,7 +827,13 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     );
   }
 
-  Widget _avatarImage(String? url, String name, bool submitted) {
+  Widget _avatarImage(
+    BuildContext context,
+    String? url,
+    String name,
+    bool submitted,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
     final initials = _initials(name);
     final resolvedUrl = AppConfig.resolveAssetUrl(url);
     final hasAvatar = resolvedUrl.isNotEmpty;
@@ -783,7 +843,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
       return Text(
         initials,
         style: TextStyle(
-          color: submitted ? const Color(0xFF1D4ED8) : const Color(0xFF1F2937),
+          color:
+              submitted ? colorScheme.primary : colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w800,
         ),
       );
@@ -811,9 +872,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         errorBuilder: (_, __, ___) => Text(
           initials,
           style: TextStyle(
-            color: submitted
-                ? const Color(0xFF2563EB)
-                : const Color(0xFF475569),
+            color:
+                submitted ? colorScheme.primary : colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -832,15 +892,17 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     return (first + last).toUpperCase();
   }
 
-  Widget _pendingTile(ClassroomMember member) {
+  Widget _pendingTile(BuildContext context, ClassroomMember member) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final name = member.fullName ?? 'Học viên';
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -849,22 +911,22 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
             children: [
               Text(
                 name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: colorScheme.onSurface,
                 ),
               ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEE2E2),
+                  color: colorScheme.errorContainer,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Text(
+                child: Text(
                   'Chưa nộp',
                   style: TextStyle(
-                    color: Color(0xFFDC2626),
+                    color: colorScheme.error,
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
@@ -873,9 +935,12 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Chưa có bài nộp nào. Bạn có thể gửi nhắc nhở.',
-            style: TextStyle(fontSize: 12.5, color: Color(0xFF6B7280)),
+            style: TextStyle(
+              fontSize: 12.5,
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 8),
           Align(
@@ -897,7 +962,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                       );
                     },
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF2563EB),
+                foregroundColor: colorScheme.primary,
               ),
               icon: const Icon(Icons.chat_bubble_outline, size: 18),
               label: const Text(

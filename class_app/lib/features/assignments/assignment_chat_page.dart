@@ -96,6 +96,8 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final currentUser = ref.watch(profileControllerProvider).user;
     final commentsAsync = ref.watch(assignmentCommentsProvider(_params));
     final counterpart = widget.isTeacher
@@ -105,10 +107,11 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
     commentsAsync.whenData((_) => _scrollToBottom());
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.surface,
         elevation: 0.5,
+        foregroundColor: colorScheme.onSurface,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -118,9 +121,9 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
             ),
             Text(
               widget.assignmentTitle,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: Color(0xFF6B7280),
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -134,19 +137,22 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: colorScheme.surface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE5E7EB),
+                    color: colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.chat_bubble_outline, color: Color(0xFF2563EB)),
+                  child: Icon(
+                    Icons.chat_bubble_outline,
+                    color: colorScheme.primary,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -155,17 +161,17 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
                     children: [
                       Text(
                         widget.isTeacher ? 'Trao đổi với học viên' : 'Trao đổi với giáo viên',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       Text(
                         counterpart,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF6B7280),
+                        style: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -178,7 +184,7 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: _refresh,
-              color: const Color(0xFF2563EB),
+              color: colorScheme.primary,
               child: commentsAsync.when(
                 loading: () => ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -197,17 +203,19 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Không tải được trao đổi.',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFFDC2626),
+                              color: colorScheme.error,
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             error.toString(),
-                            style: const TextStyle(color: Color(0xFF6B7280)),
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           OutlinedButton.icon(
@@ -238,14 +246,16 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
                   if (list.isEmpty) {
                     return ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
+                      children: [
                         Padding(
-                          padding: EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(24),
                           child: Center(
                             child: Text(
                               'Chưa có trao đổi nào.\nHãy gửi tin nhắn đầu tiên!',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Color(0xFF6B7280)),
+                              style: TextStyle(
+                                color: colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                         ),
@@ -276,23 +286,23 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
                                   c.userName?.isNotEmpty == true
                                       ? c.userName!
                                       : 'Người dùng',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF475569),
+                                    color: colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ),
                             Container(
                               decoration: BoxDecoration(
                                 color: isMine
-                                    ? const Color(0xFF2563EB)
-                                    : Colors.white,
+                                    ? colorScheme.primary
+                                    : colorScheme.surface,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
                                   color: isMine
-                                      ? const Color(0xFF2563EB)
-                                      : const Color(0xFFE5E7EB),
+                                      ? colorScheme.primary
+                                      : theme.dividerColor,
                                 ),
                               ),
                               padding: const EdgeInsets.symmetric(
@@ -303,8 +313,8 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
                                 c.content,
                                 style: TextStyle(
                                   color: isMine
-                                      ? Colors.white
-                                      : const Color(0xFF0F172A),
+                                      ? colorScheme.onPrimary
+                                      : colorScheme.onSurface,
                                   fontWeight: FontWeight.w600,
                                   height: 1.4,
                                 ),
@@ -313,9 +323,9 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
                             const SizedBox(height: 4),
                             Text(
                               timeLabel,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
-                                color: Color(0xFF94A3B8),
+                                color: colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -330,8 +340,8 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
           SafeArea(
             child: Container(
               padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
                 boxShadow: [
                   BoxShadow(
                     color: Color(0x11000000),
@@ -350,14 +360,14 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
                       decoration: InputDecoration(
                         hintText: 'Nhập tin nhắn...',
                         filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
+                        fillColor: colorScheme.surfaceVariant,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                          borderSide: BorderSide(color: theme.dividerColor),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: const BorderSide(color: Color(0xFF2563EB)),
+                          borderSide: BorderSide(color: colorScheme.primary),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -371,28 +381,32 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
                   SizedBox(
                     height: 46,
                     width: 46,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        backgroundColor: const Color(0xFF2563EB),
-                        shape: const StadiumBorder(),
-                      ),
-                      onPressed: _sending ? null : _send,
-                      child: _sending
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(Icons.send, size: 18, color: Colors.white),
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      backgroundColor: colorScheme.primary,
+                      shape: const StadiumBorder(),
                     ),
+                    onPressed: _sending ? null : _send,
+                    child: _sending
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              color: colorScheme.onPrimary,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Icon(
+                            Icons.send,
+                            size: 18,
+                            color: colorScheme.onPrimary,
+                          ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
+          ),
           ),
         ],
       ),

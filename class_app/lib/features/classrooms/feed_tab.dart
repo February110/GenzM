@@ -35,6 +35,7 @@ class _FeedTabState extends ConsumerState<FeedTab> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final annState =
         ref.watch(announcementsControllerProvider(widget.classroomId));
     final annNotifier =
@@ -84,14 +85,14 @@ class _FeedTabState extends ConsumerState<FeedTab> {
             ),
             const SizedBox(height: 20),
           ],
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 12),
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 12),
             child: Text(
               'Bảng tin',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
+                color: colorScheme.onSurface,
               ),
             ),
           ),
@@ -102,13 +103,16 @@ class _FeedTabState extends ConsumerState<FeedTab> {
               padding: const EdgeInsets.all(12),
               child: Text(
                 annState.errorMessage!,
-                style: const TextStyle(color: Colors.red),
+                style: TextStyle(color: colorScheme.error),
               ),
             )
           else if (annState.items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text('Chưa có thông báo nào'),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                'Chưa có thông báo nào',
+                style: TextStyle(color: colorScheme.onSurfaceVariant),
+              ),
             )
           else
             ...annState.items.map(
@@ -145,10 +149,11 @@ class _Composer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
@@ -162,10 +167,14 @@ class _Composer extends StatelessWidget {
         children: [
           Row(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 16,
-                backgroundColor: Color(0xFFE0ECFF),
-                child: Icon(Icons.edit, color: Color(0xFF2563EB), size: 18),
+                backgroundColor: colorScheme.primaryContainer,
+                child: Icon(
+                  Icons.edit,
+                  color: colorScheme.primary,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -182,11 +191,11 @@ class _Composer extends StatelessWidget {
               ),
               IconButton(
                 onPressed: onAttach,
-                icon: const Icon(Icons.attach_file, color: Color(0xFF2563EB)),
+                icon: Icon(Icons.attach_file, color: colorScheme.primary),
               ),
               IconButton(
                 onPressed: () => onSend(controller.text),
-                icon: const Icon(Icons.send, color: Color(0xFF2563EB)),
+                icon: Icon(Icons.send, color: colorScheme.primary),
               ),
             ],
           ),

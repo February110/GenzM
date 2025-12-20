@@ -42,6 +42,8 @@ class AssignmentDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final detailAsync = ref.watch(assignmentDetailProvider(assignmentId));
     final submissionsAsync = ref.watch(mySubmissionsProvider);
     final materialsAsync = ref.watch(assignmentMaterialsProvider(assignmentId));
@@ -49,14 +51,19 @@ class AssignmentDetailPage extends ConsumerWidget {
 
     return detailAsync.when(
       loading: () => Scaffold(
-        backgroundColor: const Color(0xFFF5F7FB),
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: _studentAppBar(ref),
         body: const Center(child: CircularProgressIndicator()),
       ),
       error: (error, _) => Scaffold(
-        backgroundColor: const Color(0xFFF5F7FB),
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: _studentAppBar(ref),
-        body: Center(child: Text(error.toString())),
+        body: Center(
+          child: Text(
+            error.toString(),
+            style: TextStyle(color: colorScheme.error),
+          ),
+        ),
       ),
       data: (assignment) {
         final submission = _findSubmission(submissionsAsync, assignment.id);
@@ -92,12 +99,13 @@ class AssignmentDetailPage extends ConsumerWidget {
         }
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F7FB),
+          backgroundColor: theme.scaffoldBackgroundColor,
           appBar: _studentAppBar(ref),
           body: Column(
             children: [
               Expanded(
                 child: RefreshIndicator(
+                  color: colorScheme.primary,
                   onRefresh: () async {
                     ref.invalidate(assignmentDetailProvider(assignmentId));
                     ref.invalidate(assignmentMaterialsProvider(assignmentId));
@@ -107,7 +115,7 @@ class AssignmentDetailPage extends ConsumerWidget {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      _headerCard(assignment, status),
+                      _headerCard(context, assignment, status),
                       const SizedBox(height: 12),
                       _instructionsCard(context, assignment, materials, materialsAsync),
                       const SizedBox(height: 14),
@@ -120,7 +128,7 @@ class AssignmentDetailPage extends ConsumerWidget {
                         isTeacher: isTeacher,
                       ),
                       const SizedBox(height: 14),
-                      _resultCard(assignment, submission),
+                      _resultCard(context, assignment, submission),
                     ],
                   ),
                 ),
@@ -141,9 +149,11 @@ class AssignmentDetailPage extends ConsumerWidget {
   }
 
   PreferredSizeWidget _studentAppBar(WidgetRef ref) {
+    final colorScheme = Theme.of(ref.context).colorScheme;
     return AppBar(
-      backgroundColor: Colors.white,
+      backgroundColor: colorScheme.surface,
       elevation: 0.5,
+      foregroundColor: colorScheme.onSurface,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () => Navigator.pop(ref.context),
@@ -161,14 +171,16 @@ class AssignmentDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _headerCard(AssignmentModel a, _StatusInfo status) {
+  Widget _headerCard(BuildContext context, AssignmentModel a, _StatusInfo status) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final dueText = _formatDue(a.dueAt);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: const [
           BoxShadow(
             color: Color(0x11000000),
@@ -182,18 +194,18 @@ class AssignmentDetailPage extends ConsumerWidget {
         children: [
           Text(
             a.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF0F172A),
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 6),
           if (a.maxPoints != null)
             Text(
               '${a.maxPoints} điểm',
-              style: const TextStyle(
-                color: Color(0xFF475569),
+              style: TextStyle(
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -202,18 +214,18 @@ class AssignmentDetailPage extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEE2E2),
+                color: colorScheme.errorContainer,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.event, size: 16, color: Color(0xFFDC2626)),
+                  Icon(Icons.event, size: 16, color: colorScheme.error),
                   const SizedBox(width: 6),
                   Text(
                     'Hạn nộp: $dueText',
-                    style: const TextStyle(
-                      color: Color(0xFFDC2626),
+                    style: TextStyle(
+                      color: colorScheme.error,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -231,31 +243,34 @@ class AssignmentDetailPage extends ConsumerWidget {
     List<AnnouncementAttachmentModel> materials,
     AsyncValue<List<AnnouncementAttachmentModel>> materialsAsync,
   ) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final content = _plainText(a.instructions);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Hướng dẫn',
             style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 16,
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             content.isNotEmpty ? content : 'Không có hướng dẫn.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               height: 1.5,
-              color: Color(0xFF334155),
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 10),
@@ -281,6 +296,8 @@ class AssignmentDetailPage extends ConsumerWidget {
   }
 
   Widget _attachmentChip(BuildContext context, AnnouncementAttachmentModel file) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final ext = file.name.split('.').last.toUpperCase();
     final url = file.url ?? '';
     final localPath = _downloadedMaterialsCache[url];
@@ -288,9 +305,9 @@ class AssignmentDetailPage extends ConsumerWidget {
       width: 140,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: colorScheme.surfaceVariant,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         children: [
@@ -298,10 +315,14 @@ class AssignmentDetailPage extends ConsumerWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+              color: colorScheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.insert_drive_file, color: const Color(0xFF2563EB), size: 18),
+            child: Icon(
+              Icons.insert_drive_file,
+              color: colorScheme.primary,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -312,16 +333,16 @@ class AssignmentDetailPage extends ConsumerWidget {
                   file.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A),
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 Text(
                   ext,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF64748B),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -333,7 +354,7 @@ class AssignmentDetailPage extends ConsumerWidget {
                   ? Icons.open_in_new_rounded
                   : Icons.download,
               size: 18,
-              color: const Color(0xFF2563EB),
+              color: colorScheme.primary,
             ),
             onPressed: url.isEmpty
                 ? null
@@ -375,25 +396,28 @@ class AssignmentDetailPage extends ConsumerWidget {
     _StatusInfo status, {
     required bool isTeacher,
   }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final pendingFile = ref.watch(pendingSubmissionProvider(a.id));
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text(
+              Text(
                 'Bài tập của bạn',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
+                  color: colorScheme.onSurface,
                 ),
               ),
               const Spacer(),
@@ -402,19 +426,20 @@ class AssignmentDetailPage extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           if (isTeacher) ...[
-            const Text(
+            Text(
               'Giáo viên không cần nộp bài. Hãy xem danh sách học viên để chấm.',
               style: TextStyle(
                 fontSize: 13,
-                color: Color(0xFF475569),
+                color: colorScheme.onSurfaceVariant,
                 height: 1.4,
               ),
             ),
           ] else if (submission != null)
-            _submissionTile(submission)
+            _submissionTile(context, submission)
           else ...[
             if (pendingFile != null) ...[
               _pendingTile(
+                context,
                 pendingFile,
                 onRemove: () => ref
                     .read(pendingSubmissionProvider(a.id).notifier)
@@ -447,25 +472,28 @@ class AssignmentDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _resultCard(AssignmentModel a, SubmissionModel? submission) {
+  Widget _resultCard(BuildContext context, AssignmentModel a, SubmissionModel? submission) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final hasGrade = submission?.grade != null && a.maxPoints != null;
     final feedback = submission?.feedback;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE0F2FE)),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Kết quả & Phản hồi',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 14),
@@ -473,8 +501,8 @@ class AssignmentDetailPage extends ConsumerWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: const Color(0xFFEFF6FF),
-              border: Border.all(color: const Color(0xFFDBEAFE)),
+              color: colorScheme.primaryContainer,
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               children: [
@@ -482,28 +510,31 @@ class AssignmentDetailPage extends ConsumerWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF22C55E).withValues(alpha: 0.15),
+                    color: colorScheme.primary.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.check_circle, color: Color(0xFF16A34A)),
+                  child: Icon(
+                    Icons.check_circle,
+                    color: colorScheme.primary,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Điểm số',
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       Text(
                         hasGrade ? 'Đã công bố' : 'Chưa có điểm',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12.5,
-                          color: Color(0xFF64748B),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -515,17 +546,17 @@ class AssignmentDetailPage extends ConsumerWidget {
                     children: [
                       Text(
                         submission!.grade!.toStringAsFixed(0),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.w900,
-                          color: Color(0xFF0F172A),
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       Text(
                         '/${a.maxPoints}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF64748B),
+                          color: colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -537,14 +568,18 @@ class AssignmentDetailPage extends ConsumerWidget {
           if (feedback != null && feedback.trim().isNotEmpty) ...[
             const SizedBox(height: 12),
             Row(
-              children: const [
-                Icon(Icons.chat_bubble_outline, size: 18, color: Color(0xFF94A3B8)),
-                SizedBox(width: 6),
+              children: [
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: 18,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 6),
                 Text(
                   'Nhận xét từ giáo viên',
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ],
@@ -554,14 +589,14 @@ class AssignmentDetailPage extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: colorScheme.surfaceVariant,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: theme.dividerColor),
               ),
               child: Text(
                 feedback,
-                style: const TextStyle(
-                  color: Color(0xFF334155),
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
                   height: 1.5,
                 ),
               ),
@@ -582,6 +617,8 @@ class AssignmentDetailPage extends ConsumerWidget {
   }) {
     if (isTeacher) return const SizedBox.shrink();
     final hasSubmission = submission != null;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final profile = ref.watch(profileControllerProvider).user;
     String? teacherName;
     if (classroomDetail != null) {
@@ -594,11 +631,11 @@ class AssignmentDetailPage extends ConsumerWidget {
     }
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Color(0x11000000),
+            color: theme.shadowColor.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: Offset(0, -3),
           ),
@@ -610,11 +647,15 @@ class AssignmentDetailPage extends ConsumerWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: colorScheme.surfaceVariant,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: IconButton(
-              icon: const Icon(Icons.chat_bubble_outline, color: Color(0xFF2563EB)),
+              icon: Icon(
+                Icons.chat_bubble_outline,
+                color: colorScheme.primary,
+              ),
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
@@ -637,7 +678,8 @@ class AssignmentDetailPage extends ConsumerWidget {
               height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
                   shape: const StadiumBorder(),
                 ),
                 onPressed: () => _AssignmentUploader.submit(
@@ -711,6 +753,8 @@ Widget _uploadPrompt(
   WidgetRef ref,
   String assignmentId,
 ) {
+  final theme = Theme.of(context);
+  final colorScheme = theme.colorScheme;
   return InkWell(
     onTap: () => _AssignmentUploader.pickFile(context, ref, assignmentId),
     child: Container(
@@ -719,21 +763,21 @@ Widget _uploadPrompt(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFFCBD5E1),
+          color: theme.dividerColor,
           style: BorderStyle.solid,
           width: 1.5,
         ),
-        color: const Color(0xFFF8FAFC),
+        color: colorScheme.surfaceVariant,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        children: const [
-          Icon(Icons.add, color: Color(0xFF2563EB)),
-          SizedBox(height: 6),
+        children: [
+          Icon(Icons.add, color: colorScheme.primary),
+          const SizedBox(height: 6),
           Text(
             'Thêm tệp hoặc tạo mới',
             style: TextStyle(
-              color: Color(0xFF2563EB),
+              color: colorScheme.primary,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -743,7 +787,13 @@ Widget _uploadPrompt(
   );
 }
 
-Widget _pendingTile(PlatformFile file, {required VoidCallback onRemove}) {
+Widget _pendingTile(
+  BuildContext context,
+  PlatformFile file, {
+  required VoidCallback onRemove,
+}) {
+  final theme = Theme.of(context);
+  final colorScheme = theme.colorScheme;
   final sizeMb = file.size > 0
       ? '${(file.size / (1024 * 1024)).toStringAsFixed(1)} MB'
       : '';
@@ -751,8 +801,8 @@ Widget _pendingTile(PlatformFile file, {required VoidCallback onRemove}) {
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFFE2E8F0)),
-      color: Colors.white,
+      border: Border.all(color: theme.dividerColor),
+      color: colorScheme.surface,
     ),
     child: Row(
       children: [
@@ -761,9 +811,12 @@ Widget _pendingTile(PlatformFile file, {required VoidCallback onRemove}) {
           height: 40,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            color: const Color(0xFFE0ECFF),
+            color: colorScheme.primaryContainer,
           ),
-          child: const Icon(Icons.insert_drive_file, color: Color(0xFF2563EB)),
+          child: Icon(
+            Icons.insert_drive_file,
+            color: colorScheme.primary,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -774,24 +827,28 @@ Widget _pendingTile(PlatformFile file, {required VoidCallback onRemove}) {
                 file.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: colorScheme.onSurface,
                 ),
               ),
               if (sizeMb.isNotEmpty)
                 Text(
                   sizeMb,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
-                    color: Color(0xFF64748B),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
             ],
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.close, size: 18, color: Color(0xFF6B7280)),
+          icon: Icon(
+            Icons.close,
+            size: 18,
+            color: colorScheme.onSurfaceVariant,
+          ),
           onPressed: onRemove,
         ),
       ],
@@ -799,7 +856,9 @@ Widget _pendingTile(PlatformFile file, {required VoidCallback onRemove}) {
   );
 }
 
-Widget _submissionTile(SubmissionModel sub) {
+Widget _submissionTile(BuildContext context, SubmissionModel sub) {
+  final theme = Theme.of(context);
+  final colorScheme = theme.colorScheme;
   final submittedAt = DateFormat('HH:mm dd/MM').format(sub.submittedAt.toLocal());
   final sizeMb = sub.fileSize > 0 ? '${(sub.fileSize / (1024 * 1024)).toStringAsFixed(1)} MB' : '';
   final name = sub.fileKey.split('/').last;
@@ -807,8 +866,8 @@ Widget _submissionTile(SubmissionModel sub) {
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFFE2E8F0)),
-      color: Colors.white,
+      border: Border.all(color: theme.dividerColor),
+      color: colorScheme.surface,
     ),
     child: Column(
       children: [
@@ -819,9 +878,12 @@ Widget _submissionTile(SubmissionModel sub) {
               height: 40,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                color: const Color(0xFFFEE2E2),
+                color: colorScheme.errorContainer,
               ),
-              child: const Icon(Icons.picture_as_pdf, color: Color(0xFFDC2626)),
+              child: Icon(
+                Icons.picture_as_pdf,
+                color: colorScheme.error,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -832,23 +894,27 @@ Widget _submissionTile(SubmissionModel sub) {
                     name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   Text(
                     [sizeMb, 'Đã nộp $submittedAt'].where((s) => s.isNotEmpty).join(' • '),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF64748B),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.close, size: 18, color: Color(0xFF94A3B8)),
+              icon: Icon(
+                Icons.close,
+                size: 18,
+                color: colorScheme.onSurfaceVariant,
+              ),
               onPressed: () {},
             ),
           ],
@@ -859,16 +925,17 @@ Widget _submissionTile(SubmissionModel sub) {
           padding: const EdgeInsets.symmetric(vertical: 20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFD6D3D1), width: 1.5),
+            border: Border.all(color: theme.dividerColor, width: 1.5),
+            color: colorScheme.surfaceVariant,
           ),
           child: Column(
-            children: const [
-              Icon(Icons.add, color: Color(0xFF2563EB)),
-              SizedBox(height: 6),
+            children: [
+              Icon(Icons.add, color: colorScheme.primary),
+              const SizedBox(height: 6),
               Text(
                 'Thêm tệp hoặc tạo mới',
                 style: TextStyle(
-                  color: Color(0xFF2563EB),
+                  color: colorScheme.primary,
                   fontWeight: FontWeight.w800,
                 ),
               ),

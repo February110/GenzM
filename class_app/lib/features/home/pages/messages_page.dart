@@ -20,13 +20,15 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final profile = ref.watch(profileControllerProvider);
     final isTeacherTalkingToStudents = _tabIndex == 0;
 
     if (profile.isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFF5F7FB),
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -36,10 +38,11 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         : ref.watch(assignmentThreadsProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.surface,
         elevation: 0.5,
+        foregroundColor: colorScheme.onSurface,
         title: const Text(
           'Tin nhắn',
           style: TextStyle(fontWeight: FontWeight.w800),
@@ -107,6 +110,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
     bool isTeacherTalkingToStudents,
     ProfileState profile,
   ) {
+    final colorScheme = Theme.of(context).colorScheme;
     return threadsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => _ErrorView(
@@ -131,7 +135,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
           );
         }
         return RefreshIndicator(
-          color: const Color(0xFF2563EB),
+          color: colorScheme.primary,
                       onRefresh: () async {
                         if (isTeacherTalkingToStudents) {
                           ref.invalidate(teacherAssignmentThreadsProvider);
@@ -167,7 +171,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                   : true;
 
               return Material(
-                color: Colors.white,
+                color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(14),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(14),
@@ -197,14 +201,14 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                           height: 46,
                           width: 46,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE5EDFF),
+                            color: colorScheme.primaryContainer,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
                             isTeacherTalkingToStudents
                                 ? Icons.support_agent_outlined
                                 : Icons.chat_bubble_outline,
-                            color: const Color(0xFF2563EB),
+                            color: colorScheme.primary,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -222,9 +226,9 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                                           t.assignment.title,
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontWeight: FontWeight.w800,
-                                            color: Color(0xFF0F172A),
+                                            color: colorScheme.onSurface,
                                           ),
                                         ),
                                         if (isTeacherTalkingToStudents)
@@ -232,9 +236,10 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                                             studentName ?? '',
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 12,
-                                              color: Color(0xFF475569),
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
@@ -250,8 +255,9 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: canOpen
-                                      ? const Color(0xFF475569)
-                                      : const Color(0xFF9CA3AF),
+                                      ? colorScheme.onSurfaceVariant
+                                      : colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.6),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -261,9 +267,9 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
                         const SizedBox(width: 10),
                         Text(
                           timeLabel,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF94A3B8),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -279,11 +285,13 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   }
 
   Widget _tabSwitcher() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Row(
         children: [
@@ -295,6 +303,7 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
   }
 
   Widget _tabButton(String label, int index) {
+    final colorScheme = Theme.of(context).colorScheme;
     final selected = _tabIndex == index;
     return Expanded(
       child: InkWell(
@@ -303,7 +312,9 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF2563EB).withValues(alpha: 0.08) : Colors.transparent,
+            color: selected
+                ? colorScheme.primary.withValues(alpha: 0.12)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
           alignment: Alignment.center,
@@ -311,7 +322,8 @@ class _MessagesPageState extends ConsumerState<MessagesPage> {
             label,
             style: TextStyle(
               fontWeight: FontWeight.w800,
-              color: selected ? const Color(0xFF2563EB) : const Color(0xFF0F172A),
+              color:
+                  selected ? colorScheme.primary : colorScheme.onSurface,
             ),
           ),
         ),
@@ -333,23 +345,25 @@ class _EmptyView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 48, color: const Color(0xFF2563EB)),
+          Icon(icon, size: 48, color: colorScheme.primary),
           const SizedBox(height: 12),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 16,
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
-            style: const TextStyle(color: Color(0xFF6B7280)),
+            style: TextStyle(color: colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ],
@@ -366,25 +380,26 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: Colors.red),
+            Icon(Icons.error_outline, color: colorScheme.error),
             const SizedBox(height: 10),
             Text(
               'Không thể tải tin nhắn',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF0F172A),
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               message,
-              style: const TextStyle(color: Color(0xFF6B7280)),
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),

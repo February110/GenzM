@@ -20,6 +20,8 @@ class MeetingsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final dataAsync = ref.watch(_meetingsLoaderProvider(classroomId));
 
     return dataAsync.when(
@@ -30,6 +32,7 @@ class MeetingsPage extends ConsumerWidget {
         return Stack(
           children: [
             RefreshIndicator(
+              color: colorScheme.primary,
               onRefresh: () async {
                 ref.invalidate(_meetingsLoaderProvider(classroomId));
                 await ref.read(_meetingsLoaderProvider(classroomId).future);
@@ -98,7 +101,7 @@ class MeetingsPage extends ConsumerWidget {
               child: Container(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.05),
@@ -114,8 +117,8 @@ class MeetingsPage extends ConsumerWidget {
                         child: ElevatedButton(
                           onPressed: () => _createMeeting(context, ref),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2563EB),
-                            foregroundColor: Colors.white,
+                            backgroundColor: colorScheme.primary,
+                            foregroundColor: colorScheme.onPrimary,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: const StadiumBorder(),
                             elevation: 0,
@@ -133,13 +136,13 @@ class MeetingsPage extends ConsumerWidget {
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: const StadiumBorder(),
-                          side: const BorderSide(color: Color(0xFF2563EB)),
+                          side: BorderSide(color: colorScheme.primary),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Tham gia bằng mã',
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF2563EB),
+                            color: colorScheme.primary,
                           ),
                         ),
                       ),
@@ -286,6 +289,8 @@ class _ActiveMeetingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     if (meeting == null) {
       return _EmptyCard(
         icon: Icons.videocam_off_outlined,
@@ -297,9 +302,9 @@ class _ActiveMeetingCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -325,10 +330,10 @@ class _ActiveMeetingCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             m.title.isNotEmpty ? m.title : 'Phòng trực tuyến',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF0F172A),
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 6),
@@ -352,8 +357,8 @@ class _ActiveMeetingCard extends StatelessWidget {
                   icon: const Icon(Icons.meeting_room_outlined),
                   label: const Text('Vào phòng'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    foregroundColor: Colors.white,
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: const StadiumBorder(),
                   ),
@@ -387,6 +392,8 @@ class _MeetingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final status = meeting.status.toLowerCase();
     final isEnded = status.contains('end');
     final chipColor = isEnded ? const Color(0xFFF97316) : const Color(0xFF0EA5E9);
@@ -394,9 +401,9 @@ class _MeetingCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -413,10 +420,10 @@ class _MeetingCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   meeting.title.isNotEmpty ? meeting.title : 'Không tên',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
+                    color: colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -464,22 +471,24 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
       ),
       child: Column(
         children: [
-          Icon(icon, color: const Color(0xFF94A3B8)),
+          Icon(icon, color: colorScheme.onSurfaceVariant),
           const SizedBox(height: 6),
           Text(
             message,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w700,
-              color: Color(0xFF6B7280),
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -529,10 +538,11 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: const Color(0xFF2563EB)),
+        Icon(icon, size: 18, color: colorScheme.primary),
         const SizedBox(width: 8),
         Expanded(
           child: Column(
@@ -540,18 +550,18 @@ class _InfoRow extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF6B7280),
+                  color: colorScheme.onSurfaceVariant,
                   fontSize: 12,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 value.isEmpty ? '—' : value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: colorScheme.onSurface,
                 ),
               ),
             ],

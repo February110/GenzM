@@ -32,6 +32,8 @@ class AnnouncementsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final profile = ref.watch(profileControllerProvider);
     final detailAsync = ref.watch(classroomDetailProvider(classroomId));
     final state = ref.watch(announcementsControllerProvider(classroomId));
@@ -66,7 +68,7 @@ class AnnouncementsPage extends ConsumerWidget {
               children: [
                 Text(
                   state.errorMessage!,
-                  style: const TextStyle(color: Colors.red),
+                  style: TextStyle(color: colorScheme.error),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
@@ -81,9 +83,14 @@ class AnnouncementsPage extends ConsumerWidget {
       }
 
       if (state.items.isEmpty) {
-        return const SliverFillRemaining(
+        return SliverFillRemaining(
           hasScrollBody: false,
-          child: Center(child: Text('Chưa có thông báo.')),
+          child: Center(
+            child: Text(
+              'Chưa có thông báo.',
+              style: TextStyle(color: colorScheme.onSurfaceVariant),
+            ),
+          ),
         );
       }
 
@@ -107,7 +114,7 @@ class AnnouncementsPage extends ConsumerWidget {
     }
 
     return Container(
-      color: const Color(0xFFF5F7FB),
+      color: theme.scaffoldBackgroundColor,
       child: SafeArea(
         top: false,
         child: Column(
@@ -125,7 +132,6 @@ class AnnouncementsPage extends ConsumerWidget {
 
             // Share box
             if (isTeacher) ...[
-            if (isTeacher) ...[
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _ShareBox(
@@ -134,11 +140,10 @@ class AnnouncementsPage extends ConsumerWidget {
               ),
               const SizedBox(height: 10),
             ],
-            ],
 
             Expanded(
               child: RefreshIndicator(
-                color: const Color(0xFF2563EB),
+                color: colorScheme.primary,
                 onRefresh: () => notifier.load(classroomId),
                 child: CustomScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -211,7 +216,7 @@ class AnnouncementsPage extends ConsumerWidget {
                           icon: const Icon(Icons.attach_file, size: 18),
                           label: const Text('Đính kèm tệp'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2563EB),
+                            backgroundColor: Theme.of(ctx).colorScheme.primary,
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -407,6 +412,8 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final commentsAsync = widget.showPreview
         ? ref.watch(announcementCommentsProvider(widget.item.id))
         : null;
@@ -416,13 +423,13 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
     final currentAvatar = AppConfig.resolveAssetUrl(profile?.avatar);
 
     return Material(
-      color: Colors.white,
+      color: colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
       elevation: 0,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: theme.dividerColor),
         ),
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -444,17 +451,17 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                       children: [
                         Text(
                           widget.item.createdByName ?? 'Giáo viên',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 14,
-                            color: Color(0xFF0F172A),
+                            color: colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           _timeAgo(widget.item.createdAt),
-                          style: const TextStyle(
-                            color: Color(0xFF6B7280),
+                          style: TextStyle(
+                            color: colorScheme.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -464,9 +471,9 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
 
                   if (widget.isTeacher)
                     PopupMenuButton<String>(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.more_horiz,
-                        color: Color(0xFF6B7280),
+                        color: colorScheme.onSurfaceVariant,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -497,10 +504,10 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
               // Content block (title + body)
               Text(
                 widget.item.content.split('\n').first,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF111827),
+                  color: colorScheme.onSurface,
                   height: 1.3,
                 ),
               ),
@@ -508,10 +515,10 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                 const SizedBox(height: 6),
                 Text(
                   widget.item.content.split('\n').skip(1).join('\n'),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     height: 1.5,
-                    color: Color(0xFF374151),
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -527,7 +534,7 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
               ],
 
               const SizedBox(height: 12),
-              const Divider(color: Color(0xFFE5E7EB), height: 24),
+              Divider(color: theme.dividerColor, height: 24),
 
               // Comments preview
               if (widget.showPreview && commentsAsync != null)
@@ -540,7 +547,10 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       error.toString(),
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                      style: TextStyle(
+                        color: colorScheme.error,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   data: (comments) {
@@ -551,27 +561,27 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                       children: [
                         Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.chat_bubble_outline,
                               size: 18,
-                              color: Color(0xFF2563EB),
+                              color: colorScheme.primary,
                             ),
                             const SizedBox(width: 6),
                             Text(
                               'Nhận xét (${comments.length})',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF111827),
+                                color: colorScheme.onSurface,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 10),
                         if (comments.isEmpty)
-                          const Text(
+                          Text(
                             'Chưa có bình luận.',
                             style: TextStyle(
-                              color: Color(0xFF6B7280),
+                              color: colorScheme.onSurfaceVariant,
                               fontSize: 12.5,
                             ),
                           )
@@ -590,7 +600,7 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                                 showModalBottomSheet<void>(
                                   context: context,
                                   isScrollControlled: true,
-                                  backgroundColor: Colors.white,
+                                  backgroundColor: colorScheme.surface,
                                   shape: const RoundedRectangleBorder(
                                     borderRadius: BorderRadius.vertical(
                                       top: Radius.circular(16),
@@ -613,7 +623,8 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                                                   width: 36,
                                                   height: 4,
                                                   decoration: BoxDecoration(
-                                                    color: Colors.grey.shade300,
+                                                    color:
+                                                        colorScheme.surfaceVariant,
                                                     borderRadius: BorderRadius.circular(999),
                                                   ),
                                                 ),
@@ -621,15 +632,18 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                                               const SizedBox(height: 12),
                                               Row(
                                                 children: [
-                                                  const Icon(Icons.chat_bubble_outline,
-                                                      size: 20, color: Color(0xFF2563EB)),
+                                                  Icon(
+                                                    Icons.chat_bubble_outline,
+                                                    size: 20,
+                                                    color: colorScheme.primary,
+                                                  ),
                                                   const SizedBox(width: 8),
                                                   Text(
                                                     'Tất cả bình luận (${comments.length})',
-                                                    style: const TextStyle(
+                                                    style: TextStyle(
                                                       fontWeight: FontWeight.w800,
                                                       fontSize: 16,
-                                                      color: Color(0xFF111827),
+                                                      color: colorScheme.onSurface,
                                                     ),
                                                   ),
                                                 ],
@@ -656,8 +670,8 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                               },
                               child: Text(
                                 'Xem thêm ${comments.length - preview.length} bình luận...',
-                                style: const TextStyle(
-                                  color: Color(0xFF2563EB),
+                                style: TextStyle(
+                                  color: colorScheme.primary,
                                   fontWeight: FontWeight.w600,
                                   fontSize: 12.5,
                                 ),
@@ -678,8 +692,8 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                                 controller: _commentController,
                                 decoration: InputDecoration(
                                   hintText: 'Thêm nhận xét trong lớp học...',
-                                  hintStyle: const TextStyle(
-                                    color: Color(0xFF9CA3AF),
+                                  hintStyle: TextStyle(
+                                    color: colorScheme.onSurfaceVariant,
                                     fontSize: 13,
                                   ),
                                   isDense: true,
@@ -688,23 +702,23 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                                     vertical: 10,
                                   ),
                                   filled: true,
-                                  fillColor: const Color(0xFFF9FAFB),
+                                  fillColor: colorScheme.surfaceVariant,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFE5E7EB),
+                                    borderSide: BorderSide(
+                                      color: theme.dividerColor,
                                     ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFFE5E7EB),
+                                    borderSide: BorderSide(
+                                      color: theme.dividerColor,
                                     ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF2563EB),
+                                    borderSide: BorderSide(
+                                      color: colorScheme.primary,
                                       width: 1.5,
                                     ),
                                   ),
@@ -722,16 +736,17 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
                                 style: ElevatedButton.styleFrom(
                                   padding: EdgeInsets.zero,
                                   shape: const CircleBorder(),
-                                  backgroundColor: const Color(0xFF2563EB),
+                                  backgroundColor: colorScheme.primary,
                                 ),
                                 child: _sendingComment
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         height: 16,
                                         width: 16,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                            colorScheme.onPrimary,
                                           ),
                                         ),
                                       )
@@ -768,6 +783,7 @@ class _AvatarBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final initial = (name != null && name!.isNotEmpty)
         ? name![0].toUpperCase()
         : 'N';
@@ -777,7 +793,7 @@ class _AvatarBubble extends StatelessWidget {
     if (hasAvatar && isSvg) {
       return CircleAvatar(
         radius: radius,
-        backgroundColor: const Color(0xFFE0ECFF),
+        backgroundColor: colorScheme.primaryContainer,
         child: ClipOval(
           child: SvgPicture.network(
             avatarUrl,
@@ -791,14 +807,14 @@ class _AvatarBubble extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFFE0ECFF),
+      backgroundColor: colorScheme.primaryContainer,
       backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
       child: hasAvatar
           ? null
           : Text(
               initial,
-              style: const TextStyle(
-                color: Color(0xFF2563EB),
+              style: TextStyle(
+                color: colorScheme.primary,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -813,6 +829,7 @@ class _InlineCommentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final name = comment.userName ?? 'Người dùng';
     final avatarUrl = AppConfig.resolveAssetUrl(comment.userAvatar);
     final hasAvatar = avatarUrl.isNotEmpty;
@@ -822,7 +839,7 @@ class _InlineCommentTile extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 16,
-          backgroundColor: const Color(0xFFE0ECFF),
+          backgroundColor: colorScheme.primaryContainer,
           backgroundImage: hasAvatar && !isSvg ? NetworkImage(avatarUrl) : null,
           child: hasAvatar
               ? (isSvg
@@ -839,8 +856,8 @@ class _InlineCommentTile extends StatelessWidget {
                   : null)
               : Text(
                   name.substring(0, 1).toUpperCase(),
-                  style: const TextStyle(
-                    color: Color(0xFF2563EB),
+                  style: TextStyle(
+                    color: colorScheme.primary,
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                   ),
@@ -856,18 +873,18 @@ class _InlineCommentTile extends StatelessWidget {
                   Expanded(
                     child: Text(
                       name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
-                        color: Color(0xFF0F172A),
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ),
                   Text(
                     _timeAgo(comment.createdAt),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF9CA3AF),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -875,9 +892,9 @@ class _InlineCommentTile extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 comment.content,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: Color(0xFF4B5563),
+                  color: colorScheme.onSurfaceVariant,
                   height: 1.4,
                 ),
               ),
@@ -1005,6 +1022,8 @@ class _AttachmentTileState extends State<_AttachmentTile> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final name = widget.file.name;
     final sizeText = _formatSize(widget.file.size);
     final url = AppConfig.resolveAssetUrl(widget.file.url ?? '');
@@ -1025,9 +1044,9 @@ class _AttachmentTileState extends State<_AttachmentTile> {
         child: Container(
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFFEEF2FF),
+            color: colorScheme.surfaceVariant,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE0E7FF)),
+            border: Border.all(color: theme.dividerColor),
           ),
           padding: const EdgeInsets.all(10),
           child: Row(
@@ -1036,16 +1055,16 @@ class _AttachmentTileState extends State<_AttachmentTile> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFCBD5F5)),
+                  border: Border.all(color: theme.dividerColor),
                 ),
                 child: Center(
                   child: Text(
                     ext.length > 4 ? ext.substring(0, 4) : ext,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF2563EB),
+                      color: colorScheme.primary,
                       fontSize: 12,
                     ),
                   ),
@@ -1060,17 +1079,17 @@ class _AttachmentTileState extends State<_AttachmentTile> {
                       name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF111827),
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     if (sizeText.isNotEmpty)
                       Text(
                         sizeText,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF6B7280),
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     if (_downloading)
@@ -1088,9 +1107,9 @@ class _AttachmentTileState extends State<_AttachmentTile> {
                               _progress != null
                                   ? '${(_progress! * 100).toStringAsFixed(0)}%'
                                   : 'Đang tải...',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
-                                color: Color(0xFF2563EB),
+                                color: colorScheme.primary,
                               ),
                             ),
                           ],
@@ -1105,7 +1124,7 @@ class _AttachmentTileState extends State<_AttachmentTile> {
                     _localPath != null
                         ? Icons.open_in_new_rounded
                         : Icons.download_rounded,
-                    color: const Color(0xFF2563EB),
+                    color: colorScheme.primary,
                   ),
                   tooltip: _localPath != null ? 'Mở tệp' : 'Tải xuống',
                   onPressed: () {
@@ -1137,19 +1156,21 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Material(
-      color: Colors.white,
+      color: colorScheme.surface,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: theme.dividerColor),
         ),
         child: Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.refresh, color: Color(0xFF1F2937)),
+              icon: Icon(Icons.refresh, color: colorScheme.onSurface),
               onPressed: onRefresh,
               tooltip: 'Làm mới',
             ),
@@ -1157,19 +1178,19 @@ class _Header extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF111827),
+                  color: colorScheme.onSurface,
                 ),
               ),
             ),
             GestureDetector(
               onTap: onProfile,
-              child: const CircleAvatar(
+              child: CircleAvatar(
                 radius: 16,
-                backgroundColor: Color(0xFFE0ECFF),
-                child: Icon(Icons.person, color: Color(0xFF2563EB)),
+                backgroundColor: colorScheme.primaryContainer,
+                child: Icon(Icons.person, color: colorScheme.primary),
               ),
             ),
           ],
@@ -1185,8 +1206,10 @@ class _ShareBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Material(
-      color: Colors.white,
+      color: colorScheme.surface,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -1195,26 +1218,33 @@ class _ShareBox extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: theme.dividerColor),
           ),
-          child: const Row(
+          child: Row(
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: Color(0xFFE0ECFF),
-                child: Icon(Icons.edit, color: Color(0xFF2563EB), size: 18),
+                backgroundColor: colorScheme.primaryContainer,
+                child: Icon(
+                  Icons.edit,
+                  color: colorScheme.primary,
+                  size: 18,
+                ),
               ),
               SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Chia sẻ với lớp học của bạn...',
                   style: TextStyle(
-                    color: Color(0xFF6B7280),
+                    color: colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              Icon(Icons.image_outlined, color: Color(0xFF9CA3AF)),
+              Icon(
+                Icons.image_outlined,
+                color: colorScheme.onSurfaceVariant,
+              ),
             ],
           ),
         ),

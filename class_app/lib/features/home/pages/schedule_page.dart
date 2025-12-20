@@ -16,6 +16,8 @@ class SchedulePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final scheduleAsync = ref.watch(calendarAssignmentsProvider);
     final classesAsync = ref.watch(calendarClassroomsProvider);
     final selectedClassId = ref.watch(selectedCalendarClassIdProvider);
@@ -24,17 +26,17 @@ class SchedulePage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
-        foregroundColor: const Color(0xFF0F172A),
+        foregroundColor: colorScheme.onSurface,
         title: const Text(
           'Lịch nộp bài',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: RefreshIndicator(
-        color: const Color(0xFF2563EB),
+        color: colorScheme.primary,
         onRefresh: () async {
           ref.invalidate(calendarAssignmentsProvider);
           ref.invalidate(calendarClassroomsProvider);
@@ -48,7 +50,7 @@ class SchedulePage extends ConsumerWidget {
               child: Text(
                 'Không tải được lịch: $error',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.red),
+                style: TextStyle(color: colorScheme.error),
               ),
             ),
           ),
@@ -95,19 +97,22 @@ class SchedulePage extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: colorScheme.surface,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                      border: Border.all(color: theme.dividerColor),
                     ),
                     child: Column(
-                      children: const [
-                        Icon(Icons.event_available, color: Color(0xFF94A3B8)),
-                        SizedBox(height: 8),
+                      children: [
+                        Icon(
+                          Icons.event_available,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 8),
                         Text(
                           'Chưa có bài tập sắp tới',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF6B7280),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -124,10 +129,10 @@ class SchedulePage extends ConsumerWidget {
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Text(
                               _formatDate(day),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
+                                color: colorScheme.onSurface,
                               ),
                             ),
                           ),
@@ -287,18 +292,20 @@ class _ScheduleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final a = item.assignment;
     final due = item.dueLocal;
     final isOverdue = due.isBefore(DateTime.now());
     final timeStr = DateFormat('HH:mm dd/MM').format(due);
-    final color = isOverdue ? const Color(0xFFF43F5E) : const Color(0xFF2563EB);
+    final color = isOverdue ? colorScheme.error : colorScheme.primary;
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -331,13 +338,13 @@ class _ScheduleCard extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE5EDFF),
+                        color: colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         item.classroomName,
-                        style: const TextStyle(
-                          color: Color(0xFF2563EB),
+                        style: TextStyle(
+                          color: colorScheme.primary,
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                         ),
@@ -359,10 +366,10 @@ class _ScheduleCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   a.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 if ((a.instructions ?? '').isNotEmpty) ...[
@@ -371,9 +378,9 @@ class _ScheduleCard extends StatelessWidget {
                     a.instructions!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF4B5563),
+                      color: colorScheme.onSurfaceVariant,
                       height: 1.4,
                     ),
                   ),
@@ -403,11 +410,13 @@ class _CalendarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -427,39 +436,55 @@ class _CalendarCard extends StatelessWidget {
           focusedDay: focusedDay,
           selectedDayPredicate: (day) => isSameDay(day, selectedDay),
           onDaySelected: onDaySelected,
-          headerStyle: const HeaderStyle(
+          headerStyle: HeaderStyle(
             formatButtonVisible: false,
             titleCentered: true,
             titleTextStyle: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 16,
-              color: Color(0xFF0F172A),
+              color: colorScheme.onSurface,
             ),
             leftChevronMargin: EdgeInsets.zero,
             rightChevronMargin: EdgeInsets.zero,
           ),
-          daysOfWeekStyle: const DaysOfWeekStyle(
+          daysOfWeekStyle: DaysOfWeekStyle(
             weekdayStyle: TextStyle(
               fontWeight: FontWeight.w700,
-              color: Color(0xFF6B7280),
+              color: colorScheme.onSurfaceVariant,
             ),
             weekendStyle: TextStyle(
               fontWeight: FontWeight.w700,
-              color: Color(0xFF6B7280),
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
           calendarStyle: CalendarStyle(
             todayDecoration: BoxDecoration(
-              color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+              color: colorScheme.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            selectedDecoration: const BoxDecoration(
-              color: Color(0xFF2563EB),
+            selectedDecoration: BoxDecoration(
+              color: colorScheme.primary,
               shape: BoxShape.circle,
             ),
-            markerDecoration: const BoxDecoration(
-              color: Color(0xFF2563EB),
+            markerDecoration: BoxDecoration(
+              color: colorScheme.primary,
               shape: BoxShape.circle,
+            ),
+            defaultTextStyle: TextStyle(color: colorScheme.onSurface),
+            weekendTextStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+            outsideTextStyle: TextStyle(
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+            ),
+            disabledTextStyle: TextStyle(
+              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
+            selectedTextStyle: TextStyle(
+              color: colorScheme.onPrimary,
+              fontWeight: FontWeight.w700,
+            ),
+            todayTextStyle: TextStyle(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w700,
             ),
             markerSizeScale: 0.15,
             markersAlignment: Alignment.bottomCenter,
@@ -491,6 +516,7 @@ class _ClassFilterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     ClassroomModel? selectedClass;
     if (selected != null) {
       for (final c in classes) {
@@ -508,9 +534,9 @@ class _ClassFilterButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: theme.dividerColor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.02),
@@ -521,18 +547,22 @@ class _ClassFilterButton extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.filter_alt_rounded, color: Color(0xFF2563EB)),
+            Icon(Icons.filter_alt_rounded, color: colorScheme.primary),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 selectedName,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF0F172A),
+                  color: colorScheme.onSurface,
                 ),
               ),
             ),
-            const Icon(Icons.keyboard_arrow_down_rounded, size: 22),
+            Icon(
+              Icons.keyboard_arrow_down_rounded,
+              size: 22,
+              color: colorScheme.onSurfaceVariant,
+            ),
           ],
         ),
       ),
@@ -544,6 +574,7 @@ class _ClassFilterButton extends StatelessWidget {
 
     showModalBottomSheet<void>(
       context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
@@ -557,7 +588,10 @@ class _ClassFilterButton extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.filter_alt_rounded, color: Color(0xFF2563EB)),
+                    Icon(
+                      Icons.filter_alt_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Chọn lớp',
@@ -577,7 +611,12 @@ class _ClassFilterButton extends StatelessWidget {
                   title: const Text('Tất cả các lớp'),
                   leading: const Icon(Icons.all_inclusive),
                   trailing:
-                      selected == null ? const Icon(Icons.check, color: Color(0xFF2563EB)) : null,
+                      selected == null
+                          ? Icon(
+                              Icons.check,
+                              color: Theme.of(context).colorScheme.primary,
+                            )
+                          : null,
                   onTap: () {
                     onSelect(null);
                     Navigator.pop(context);
@@ -587,7 +626,10 @@ class _ClassFilterButton extends StatelessWidget {
                   (c) => ListTile(
                     title: Text(c.name),
                     trailing: selected == c.id
-                        ? const Icon(Icons.check, color: Color(0xFF2563EB))
+                        ? Icon(
+                            Icons.check,
+                            color: Theme.of(context).colorScheme.primary,
+                          )
                         : null,
                     onTap: () {
                       onSelect(c.id);
