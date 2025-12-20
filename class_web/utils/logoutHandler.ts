@@ -1,6 +1,5 @@
 "use client";
 
-import { signOut } from "next-auth/react";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 
@@ -10,9 +9,6 @@ export function useLogoutHandler() {
 
   const handleLogout = async () => {
     try {
-      // Xóa session OAuth (nếu đang dùng NextAuth)
-      await signOut({ redirect: false });
-
       // Xóa token local
       logout();
 

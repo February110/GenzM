@@ -7,8 +7,6 @@ import {
   Search,
   Bell,
   ChevronDown,
-  User,
-  Settings,
   LogOut,
   Megaphone,
   ClipboardList,
@@ -19,7 +17,6 @@ import { getCurrentUser } from "@/api/auth";
 import type { AuthUser } from "@/api/auth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
 import { useLogoutHandler } from "@/utils/logoutHandler";
 import { resolveAvatar } from "@/utils/resolveAvatar";
 import useNotifications from "@/hooks/useNotifications";
@@ -84,11 +81,11 @@ export default function AdminTopbar() {
         markRead(item.id).catch(() => {});
       }
       const target = item.assignmentId
-        ? `/assignments/${item.assignmentId}`
+        ? "/admin/assignments"
         : item.classroomId
-          ? `/classrooms/${item.classroomId}`
-          : null;
-      if (target) router.push(target);
+          ? "/admin/classes"
+          : "/admin";
+      router.push(target);
       setNotifOpen(false);
     },
     [markRead, router]
@@ -109,14 +106,6 @@ export default function AdminTopbar() {
     if (pathname?.startsWith("/admin/submissions")) return "Bài nộp";
     if (pathname?.startsWith("/admin/grades")) return "Chấm điểm";
     if (pathname === "/admin" || pathname?.startsWith("/admin")) return "Tổng quan";
-
-    // Classroom
-    if (pathname?.startsWith("/classrooms/overview")) return "Tổng quan";
-    if (pathname?.startsWith("/classrooms")) return "Lớp của tôi";
-    if (pathname?.startsWith("/assignments/calendar")) return "Lịch";
-    if (pathname?.startsWith("/assignments")) return "Bài tập";
-    if (pathname?.startsWith("/submissions")) return "Bài nộp";
-    if (pathname?.startsWith("/profile")) return "Hồ sơ";
 
     return "Tổng quan";
   }, [pathname]);
@@ -274,13 +263,6 @@ export default function AdminTopbar() {
                 <div className="font-medium text-gray-900 dark:text-gray-100">{user?.fullName || "User"}</div>
                 <div className="text-xs truncate">{user?.email}</div>
               </div>
-              <div className="h-px bg-gray-100 dark:bg-gray-800 my-1" />
-              <Link href="/profile" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" role="menuitem">
-                <User size={16} /> Profile
-              </Link>
-              <Link href="#" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" role="menuitem">
-                <Settings size={16} /> Settings
-              </Link>
               <div className="h-px bg-gray-100 dark:bg-gray-800 my-1" />
               <button onClick={() => { setOpen(false); handleLogout(); }} className="w-full text-left flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800" role="menuitem">
                 <LogOut size={16} /> Logout

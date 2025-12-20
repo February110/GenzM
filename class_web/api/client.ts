@@ -19,7 +19,7 @@ api.interceptors.response.use(
   (err) => {
     const status = err?.response?.status;
     const url: string | undefined = err?.config?.url;
-    const isAuthEndpoint = url?.includes("/auth/login") || url?.includes("/auth/register") || url?.includes("/auth/sync");
+    const isAuthEndpoint = url?.includes("/auth/login");
 
     if (typeof window !== "undefined" && status === 401 && !isAuthEndpoint) {
       // Chỉ redirect khi 401 xảy ra ở các endpoint cần auth, KHÔNG redirect ở trang đăng nhập/đăng ký

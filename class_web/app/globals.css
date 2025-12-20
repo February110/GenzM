@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
 @import 'tailwindcss';
 
 @custom-variant dark (&:is(.dark *));
@@ -144,6 +145,10 @@
 @layer base {
   body {
     @apply relative z-1 font-inter text-regular font-normal text-waterloo dark:text-manatee;
+  }
+
+  .font-space {
+    font-family: "Space Grotesk", sans-serif;
   }
 }
 

@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
 
   useEffect(() => {
     if (loading) return;
@@ -16,12 +16,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace("/auth/login");
       return;
     }
-    if (user.systemRole !== "Admin") {
-      router.replace("/");
+    if ((user.systemRole || "").toLowerCase() !== "admin") {
+      logout();
+      router.replace("/auth/login");
     }
-  }, [user, loading, router]);
+  }, [user, loading, logout, router]);
 
-  if (loading || !user || user.systemRole !== "Admin") {
+  if (loading || !user || (user.systemRole || "").toLowerCase() !== "admin") {
     return <div className="min-h-screen flex items-center justify-center text-gray-500">Đang kiểm tra quyền truy cập...</div>;
   }
 

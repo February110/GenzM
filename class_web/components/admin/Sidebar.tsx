@@ -9,8 +9,6 @@ import {
   GraduationCap,
   FileText,
   ClipboardList,
-  NotebookPen,
-  FileCheck2,
   ChevronLeft,
   ChevronRight,
   LineChart,
@@ -84,11 +82,6 @@ export default function AdminSidebar() {
           <NavItem collapsed={collapsed} href="/admin/submissions" label="Bài nộp" icon={FileText} />
         </nav>
 
-        {!collapsed && <div className="px-2 text-[11px] uppercase tracking-wider text-gray-400 mt-4 mb-2">Khác</div>}
-        <nav className="flex flex-col gap-1">
-          <NavItem collapsed={collapsed} href="/auth/login" label="Đăng nhập" icon={FileCheck2} />
-          <NavItem collapsed={collapsed} href="/auth/register" label="Đăng ký" icon={NotebookPen} />
-        </nav>
       </div>
 
       {!collapsed && <div className="mt-auto px-5 py-4 text-xs text-gray-400">© {new Date().getFullYear()} GenZ Learning</div>}

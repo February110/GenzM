@@ -7,7 +7,7 @@ Thumbs.db
 
 # Flutter / Dart
 .dart_tool/
-.packages
+.packages1
 pubspec.lock
 **/build/
 **/.flutter-plugins

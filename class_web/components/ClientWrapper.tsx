@@ -6,8 +6,7 @@ import { Toaster } from "react-hot-toast";
 
 /**
  * Quy ước:
- * - (site) group và các app shell (admin/classrooms) tự quản lý header/guard riêng
- * - Không còn dùng Navbar toàn cục do đã bỏ /submissions
+ * - Admin shell tự quản lý header/guard riêng
  */
 export default function ClientWrapper({ children }: { children: React.ReactNode }) {
   return (
