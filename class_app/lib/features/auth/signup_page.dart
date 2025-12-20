@@ -272,9 +272,7 @@ class _SignUpPageState extends State<SignUpPage> with TickerProviderStateMixin {
                             onPressed: _onSubmit,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF3B82F6),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
+                              shape: const StadiumBorder(),
                               elevation: 2,
                             ),
                             child: const Text(

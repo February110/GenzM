@@ -168,9 +168,7 @@ class AssignmentsPage extends ConsumerWidget {
               child: FloatingActionButton(
                 heroTag: 'create-assignment-fab',
                 backgroundColor: const Color(0xFF2563EB),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
+                shape: const StadiumBorder(),
                 onPressed: () => _showCreateBottomSheet(
                   context,
                   notifier,
@@ -530,9 +528,7 @@ class AssignmentsPage extends ConsumerWidget {
                                       horizontal: 14,
                                       vertical: 14,
                                     ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
+                                    shape: const StadiumBorder(),
                                   ),
                                   icon: isGeneratingQuiz
                                       ? const SizedBox(
@@ -735,9 +731,7 @@ class AssignmentsPage extends ConsumerWidget {
                           label: const Text('Đính kèm tệp'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
+                            shape: const StadiumBorder(),
                           ),
                         ),
                       ],

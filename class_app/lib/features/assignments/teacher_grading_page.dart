@@ -656,9 +656,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                shape: const StadiumBorder(),
               ),
               icon: const Icon(Icons.send),
               label: const Text(

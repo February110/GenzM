@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/theme/theme_controller.dart';
 import '../auth/auth_controller.dart';
 import 'profile_controller.dart';
 import 'change_password_page.dart';
@@ -17,7 +18,6 @@ class ProfilePage extends ConsumerStatefulWidget {
 class _ProfilePageState extends ConsumerState<ProfilePage> {
   late final TextEditingController _nameController;
   late final TextEditingController _avatarController;
-  bool _darkMode = false;
 
   @override
   void initState() {
@@ -47,12 +47,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final notifier = ref.read(profileControllerProvider.notifier);
     final auth = ref.read(authControllerProvider.notifier);
     final user = state.user;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final dividerColor = theme.dividerColor;
+    final themeMode = ref.watch(themeModeProvider);
+    final isDarkMode = themeMode == ThemeMode.dark;
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: colorScheme.surface,
         elevation: 0,
-        foregroundColor: const Color(0xFF0F172A),
+        foregroundColor: colorScheme.onSurface,
         title: const Text(
           'Hồ sơ cá nhân',
           style: TextStyle(fontWeight: FontWeight.w800),
@@ -75,7 +80,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
         ],
       ),
-      backgroundColor: const Color(0xFFF5F7FB),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -118,17 +122,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     const SizedBox(height: 12),
                     Text(
                       user?.name ?? 'Người dùng',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF0F172A),
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 20),
-              _sectionTitle('Thông tin chung'),
+              _sectionTitle(context, 'Thông tin chung'),
               const SizedBox(height: 10),
               _InfoCard(
                 children: [
@@ -148,47 +152,53 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       ),
                     ),
                   ),
-                  const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                  Divider(height: 1, color: dividerColor),
                   _FieldTile(
                     label: 'Email',
                     trailing: Text(
                       user?.email ?? '—',
                       textAlign: TextAlign.right,
-                      style: const TextStyle(
-                        color: Color(0xFF6B7280),
+                      style: TextStyle(
+                        color: colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Email được quản lý bởi nhà trường và không thể thay đổi.',
                     style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF9CA3AF),
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 18),
-              _sectionTitle('Cài đặt tài khoản'),
+              _sectionTitle(context, 'Cài đặt tài khoản'),
               const SizedBox(height: 10),
               _InfoCard(
                 children: [
                   SwitchListTile(
-                    value: _darkMode,
-                    onChanged: (v) => setState(() => _darkMode = v),
-                    activeColor: const Color(0xFF2563EB),
+                    value: isDarkMode,
+                    onChanged: (v) {
+                      ref.read(themeModeProvider.notifier).state =
+                          v ? ThemeMode.dark : ThemeMode.light;
+                    },
+                    activeColor: colorScheme.primary,
                     title: const Text(
                       'Chế độ tối',
                       style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                     contentPadding: EdgeInsets.zero,
                   ),
-                  const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                  Divider(height: 1, color: dividerColor),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.lock_outline, color: Color(0xFF2563EB)),
+                    leading: Icon(
+                      Icons.lock_outline,
+                      color: colorScheme.primary,
+                    ),
                     title: const Text(
                       'Đổi mật khẩu',
                       style: TextStyle(fontWeight: FontWeight.w800),
@@ -202,18 +212,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       );
                     },
                   ),
-                  const Divider(height: 1, color: Color(0xFFE5E7EB)),
+                  Divider(height: 1, color: dividerColor),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.language_outlined, color: Color(0xFF2563EB)),
+                    leading: Icon(
+                      Icons.language_outlined,
+                      color: colorScheme.primary,
+                    ),
                     title: const Text(
                       'Ngôn ngữ',
                       style: TextStyle(fontWeight: FontWeight.w800),
                     ),
-                    trailing: const Text(
+                    trailing: Text(
                       'Tiếng Việt',
                       style: TextStyle(
-                        color: Color(0xFF6B7280),
+                        color: colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -228,13 +241,13 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
                 },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFDC2626),
-                  backgroundColor: const Color(0xFFFCE7E7),
-                  side: BorderSide(color: const Color(0xFFDC2626).withValues(alpha: 0.4)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
+                  foregroundColor: colorScheme.error,
+                  backgroundColor: colorScheme.errorContainer,
+                  side: BorderSide(
+                    color: colorScheme.error.withValues(alpha: 0.5),
                   ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: const StadiumBorder(),
                 ),
                 child: const Text(
                   'Đăng xuất',
@@ -242,11 +255,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Center(
+              Center(
                 child: Text(
                   'Phiên bản 2.4.0 (Build 1024)',
                   style: TextStyle(
-                    color: Color(0xFF9CA3AF),
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                     fontSize: 12,
                   ),
                 ),
@@ -255,7 +268,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 const SizedBox(height: 12),
                 Text(
                   state.errorMessage!,
-                  style: const TextStyle(color: Colors.red),
+                  style: TextStyle(color: colorScheme.error),
                 ),
               ],
             ],
@@ -300,12 +313,13 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: theme.dividerColor),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -337,9 +351,9 @@ class _FieldTile extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF6B7280),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -350,13 +364,14 @@ class _FieldTile extends StatelessWidget {
   }
 }
 
-Widget _sectionTitle(String title) {
+Widget _sectionTitle(BuildContext context, String title) {
+  final color = Theme.of(context).colorScheme.onSurfaceVariant;
   return Text(
     title.toUpperCase(),
-    style: const TextStyle(
+    style: TextStyle(
       fontWeight: FontWeight.w800,
       fontSize: 12,
-      color: Color(0xFF94A3B8),
+      color: color.withValues(alpha: 0.8),
       letterSpacing: 0.4,
     ),
   );
@@ -371,6 +386,7 @@ class _AvatarView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final full = avatarUrl ?? '';
     final resolved = AppConfig.resolveAssetUrl(full);
     final isSvg = AppConfig.isSvgUrl(resolved);
@@ -381,7 +397,7 @@ class _AvatarView extends StatelessWidget {
     if (hasAvatar && isSvg) {
       return CircleAvatar(
         radius: radius,
-        backgroundColor: const Color(0xFFE0ECFF),
+        backgroundColor: colorScheme.primaryContainer,
         child: ClipOval(
           child: SizedBox(
             width: radius * 2,
@@ -400,16 +416,16 @@ class _AvatarView extends StatelessWidget {
 
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFFE0ECFF),
+      backgroundColor: colorScheme.primaryContainer,
       backgroundImage: hasAvatar ? NetworkImage(resolved) : null,
       child: hasAvatar
           ? null
           : Text(
               initial,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 24,
-                color: Color(0xFF2563EB),
+                color: colorScheme.primary,
               ),
             ),
     );

@@ -9,9 +9,14 @@ import '../../data/repositories/meeting_repository_impl.dart';
 import 'meeting_room_page.dart';
 
 class MeetingsPage extends ConsumerWidget {
-  const MeetingsPage({super.key, required this.classroomId});
+  const MeetingsPage({
+    super.key,
+    required this.classroomId,
+    required this.isTeacher,
+  });
 
   final String classroomId;
+  final bool isTeacher;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -104,33 +109,30 @@ class MeetingsPage extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () => _createMeeting(context, ref),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
+                    if (isTeacher)
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _createMeeting(context, ref),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: const StadiumBorder(),
+                            elevation: 0,
                           ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'Tạo (GV)',
-                          style: TextStyle(fontWeight: FontWeight.w800),
+                          child: const Text(
+                            'Tạo cuộc họp',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
+                    if (isTeacher) const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton(
                         onPressed: () => _joinMeeting(context, ref),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
+                          shape: const StadiumBorder(),
                           side: const BorderSide(color: Color(0xFF2563EB)),
                         ),
                         child: const Text(
@@ -353,9 +355,7 @@ class _ActiveMeetingCard extends StatelessWidget {
                     backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: const StadiumBorder(),
                   ),
                 ),
               ),
@@ -364,9 +364,7 @@ class _ActiveMeetingCard extends StatelessWidget {
                 onPressed: onCopy,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: const StadiumBorder(),
                 ),
                 child: const Text('Sao chép mã'),
               ),

@@ -527,7 +527,10 @@ class ClassroomDetailPage extends ConsumerWidget {
                 children: [
                   FeedTab(detail: detail, classroomId: classroomId),
                   AssignmentsPage(classroomId: classroomId),
-                  MeetingsPage(classroomId: classroomId),
+                  MeetingsPage(
+                    classroomId: classroomId,
+                    isTeacher: isTeacher,
+                  ),
                   MembersList(members: detail.members),
                   if (isTeacher)
                     GradesTab(
@@ -634,7 +637,7 @@ class _FilterPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: const BorderRadius.all(Radius.circular(999)),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -642,7 +645,7 @@ class _FilterPill extends StatelessWidget {
           color: selected
               ? Colors.white.withValues(alpha: 0.2)
               : Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: const BorderRadius.all(Radius.circular(999)),
           border: Border.all(
             color: selected
                 ? Colors.white

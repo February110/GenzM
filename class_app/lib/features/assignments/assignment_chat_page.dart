@@ -375,9 +375,7 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
                       style: ElevatedButton.styleFrom(
                         padding: EdgeInsets.zero,
                         backgroundColor: const Color(0xFF2563EB),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                        shape: const StadiumBorder(),
                       ),
                       onPressed: _sending ? null : _send,
                       child: _sending

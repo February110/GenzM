@@ -835,9 +835,7 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
                             backgroundColor: const Color(0xFF2563EB),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.all(14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            shape: const StadiumBorder(),
                           ),
                           onPressed: () async {
                             final text = controller.text;

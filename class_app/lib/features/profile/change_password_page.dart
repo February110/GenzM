@@ -176,9 +176,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                           backgroundColor: const Color(0xFF2563EB),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: const StadiumBorder(),
                         ),
                         child: _loading
                             ? const SizedBox(

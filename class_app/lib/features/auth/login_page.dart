@@ -239,9 +239,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           onPressed: _isLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF3B82F6),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
+                            shape: const StadiumBorder(),
                             elevation: 2,
                           ),
                           child: _isLoading
@@ -317,9 +315,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                     color: Colors.grey.shade300,
                                     width: 1,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
+                                  shape: const StadiumBorder(),
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -359,9 +355,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                     color: Colors.grey.shade300,
                                     width: 1,
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
+                                  shape: const StadiumBorder(),
                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
