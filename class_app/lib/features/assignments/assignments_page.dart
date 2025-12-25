@@ -16,6 +16,21 @@ import 'assignments_controller.dart';
 import 'assignment_detail_page.dart';
 import 'submission_status_provider.dart';
 
+final RegExp _aiOptionLabelPattern =
+    RegExp(r'^\s*([A-Ha-h]|\d{1,2})\s*[\)\.\:\-]\s*');
+
+String _stripAiOptionLabel(String option) {
+  var normalized = option.trim();
+  while (true) {
+    final match = _aiOptionLabelPattern.firstMatch(normalized);
+    if (match == null) {
+      break;
+    }
+    normalized = normalized.substring(match.end).trimLeft();
+  }
+  return normalized;
+}
+
 class AssignmentsPage extends ConsumerWidget {
   const AssignmentsPage({super.key, required this.classroomId});
 
@@ -347,7 +362,8 @@ class AssignmentsPage extends ConsumerWidget {
                 buffer.writeln('Câu ${i + 1}: ${item.question}');
                 for (var j = 0; j < item.options.length; j++) {
                   final label = j < labels.length ? labels[j] : '•';
-                  buffer.writeln('$label. ${item.options[j]}');
+                  final optionText = _stripAiOptionLabel(item.options[j]);
+                  buffer.writeln('$label. $optionText');
                 }
                 buffer.writeln();
               }
@@ -1097,7 +1113,7 @@ class _AiQuizPreview extends StatelessWidget {
                     ),
                     Expanded(
                       child: Text(
-                        entry.value,
+                        _stripAiOptionLabel(entry.value),
                         style: TextStyle(
                           color: colorScheme.onSurface,
                           fontSize: 13.2,

@@ -8,4 +8,10 @@ abstract class SubmissionRepository {
   Future<List<SubmissionModel>> mySubmissions();
   Future<List<SubmissionWithGradeModel>> listByAssignment(String assignmentId);
   Future<String> downloadUrl(String submissionId);
+  Future<void> gradeSubmission({
+    required String submissionId,
+    required double grade,
+    String? feedback,
+    String status,
+  });
 }

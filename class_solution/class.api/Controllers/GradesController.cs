@@ -44,7 +44,8 @@ namespace class_api.Controllers
             var member = await _db.Enrollments.Include(e => e.User).FirstOrDefaultAsync(e =>
                 e.ClassroomId == sub.Assignment!.ClassroomId && e.UserId == _me.UserId, ct);
 
-            if (member == null || member.Role != "Teacher") return Forbid();
+            if (member == null || !string.Equals(member.Role, "Teacher", StringComparison.OrdinalIgnoreCase))
+                return Forbid();
 
             var grade = await _db.Grades
                 .FirstOrDefaultAsync(g => g.AssignmentId == sub.AssignmentId && g.UserId == sub.UserId, ct);

@@ -31,8 +31,6 @@ class NotificationHubManager extends StateNotifier<HubStatus> {
           url,
           HttpConnectionOptions(
             accessTokenFactory: () async => token,
-            skipNegotiation: true,
-            transport: HttpTransportType.webSockets,
           ),
         )
         .withAutomaticReconnect()

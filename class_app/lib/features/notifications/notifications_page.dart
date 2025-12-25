@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/config/app_config.dart';
 import '../../data/models/notification_model.dart';
 import '../assignments/assignment_detail_page.dart';
 import '../classrooms/classrooms_page.dart';
@@ -101,6 +103,8 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                   color: palette.avatarBg,
                                   icon: action.icon,
                                   iconColor: palette.accent,
+                                  avatarUrl: item.actorAvatar,
+                                  isComment: item.type.contains('comment'),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -145,7 +149,12 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                                             color: colorScheme.onSurfaceVariant,
                                             fontSize: 13,
                                             height: 1.3,
+                                            fontStyle: item.type.contains('comment')
+                                                ? FontStyle.italic
+                                                : FontStyle.normal,
                                           ),
+                                          maxLines: item.type.contains('comment') ? 3 : 2,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                     ],
                                   ),
@@ -211,15 +220,51 @@ class _AvatarChip extends StatelessWidget {
     required this.color,
     this.icon,
     this.iconColor,
+    this.avatarUrl,
+    this.isComment = false,
   });
 
   final String text;
   final Color color;
   final IconData? icon;
   final Color? iconColor;
+  final String? avatarUrl;
+  final bool isComment;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final resolvedAvatar = avatarUrl != null && avatarUrl!.isNotEmpty
+        ? AppConfig.resolveAssetUrl(avatarUrl)
+        : '';
+    final hasAvatar = resolvedAvatar.isNotEmpty;
+    final isSvg = AppConfig.isSvgUrl(resolvedAvatar);
+
+    // Nếu là comment và có avatar, hiển thị avatar thật
+    if (isComment && hasAvatar) {
+      if (isSvg) {
+        return CircleAvatar(
+          radius: 18,
+          backgroundColor: colorScheme.primaryContainer,
+          child: ClipOval(
+            child: SvgPicture.network(
+              resolvedAvatar,
+              fit: BoxFit.cover,
+              placeholderBuilder: (_) => const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+        );
+      }
+      return CircleAvatar(
+        radius: 18,
+        backgroundColor: colorScheme.primaryContainer,
+        backgroundImage: NetworkImage(resolvedAvatar),
+      );
+    }
+
+    // Mặc định hiển thị icon hoặc chữ cái đầu
     return CircleAvatar(
       radius: 18,
       backgroundColor: color,

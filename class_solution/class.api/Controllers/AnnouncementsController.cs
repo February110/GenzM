@@ -344,6 +344,33 @@ namespace class_api.Controllers
                 "bình luận vào thông báo",
                 classroom?.Name,
                 DateTime.UtcNow));
+
+            // Notify relevant users
+            var recipients = new List<Guid>();
+            if (ann.UserId != _me.UserId)
+            {
+                recipients.Add(ann.UserId);
+            }
+
+            if (recipients.Any())
+            {
+                try
+                {
+                    await _notifications.NotifyUsersAsync(
+                        recipients,
+                        "Bình luận mới",
+                        c.Content,
+                        "announcement-comment",
+                        ann.ClassroomId,
+                        null,
+                        new { actorName = user?.FullName, actorAvatar = user?.Avatar });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"⚠️ Dispatch announcement comment notification failed: {ex.Message}");
+                }
+            }
+
             return Ok(payload);
         }
 

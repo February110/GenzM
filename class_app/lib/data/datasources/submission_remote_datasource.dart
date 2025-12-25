@@ -98,6 +98,29 @@ class SubmissionRemoteDataSource {
       );
     }
   }
+
+  Future<void> gradeSubmission({
+    required String submissionId,
+    required double grade,
+    String? feedback,
+    String status = 'graded',
+  }) async {
+    try {
+      await _client.put<void>(
+        '/grades/$submissionId',
+        data: {
+          'grade': grade,
+          'feedback': feedback,
+          'status': status,
+        },
+      );
+    } on DioException catch (error) {
+      throw AppException(
+        _extractMessage(error),
+        code: error.response?.statusCode?.toString(),
+      );
+    }
+  }
 }
 
 final submissionRemoteDataSourceProvider = Provider<SubmissionRemoteDataSource>(

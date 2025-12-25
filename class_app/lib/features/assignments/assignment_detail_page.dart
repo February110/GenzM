@@ -475,7 +475,9 @@ class AssignmentDetailPage extends ConsumerWidget {
   Widget _resultCard(BuildContext context, AssignmentModel a, SubmissionModel? submission) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final hasGrade = submission?.grade != null && a.maxPoints != null;
+    final gradeStatus = submission?.gradeStatus?.toLowerCase();
+    final hasGrade = submission?.grade != null && gradeStatus != 'draft';
+    final hasDraftGrade = submission?.grade != null && gradeStatus == 'draft';
     final feedback = submission?.feedback;
 
     return Container(
@@ -531,7 +533,11 @@ class AssignmentDetailPage extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        hasGrade ? 'Đã công bố' : 'Chưa có điểm',
+                        hasGrade
+                            ? 'Đã chấm'
+                            : hasDraftGrade
+                                ? 'Đang chấm'
+                                : 'Chưa có điểm',
                         style: TextStyle(
                           fontSize: 12.5,
                           color: colorScheme.onSurfaceVariant,
@@ -552,14 +558,15 @@ class AssignmentDetailPage extends ConsumerWidget {
                           color: colorScheme.onSurface,
                         ),
                       ),
-                      Text(
-                        '/${a.maxPoints}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
+                      if (a.maxPoints != null)
+                        Text(
+                          '/${a.maxPoints}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
                     ],
                   ),
               ],
@@ -787,6 +794,72 @@ Widget _uploadPrompt(
   );
 }
 
+class _FileIconStyle {
+  const _FileIconStyle(this.icon, this.bg, this.fg);
+
+  final IconData icon;
+  final Color bg;
+  final Color fg;
+}
+
+_FileIconStyle _fileIconStyle(ColorScheme colorScheme, String name) {
+  final ext =
+      name.contains('.') ? name.split('.').last.toLowerCase() : '';
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+    case 'bmp':
+    case 'webp':
+    case 'heic':
+      return _FileIconStyle(
+        Icons.image,
+        colorScheme.primaryContainer,
+        colorScheme.primary,
+      );
+    case 'pdf':
+      return _FileIconStyle(
+        Icons.picture_as_pdf,
+        colorScheme.errorContainer,
+        colorScheme.error,
+      );
+    case 'doc':
+    case 'docx':
+    case 'ppt':
+    case 'pptx':
+    case 'xls':
+    case 'xlsx':
+    case 'csv':
+      return _FileIconStyle(
+        Icons.description,
+        colorScheme.secondaryContainer,
+        colorScheme.secondary,
+      );
+    case 'zip':
+    case 'rar':
+    case '7z':
+      return _FileIconStyle(
+        Icons.archive,
+        colorScheme.surfaceVariant,
+        colorScheme.onSurfaceVariant,
+      );
+    case 'txt':
+    case 'md':
+      return _FileIconStyle(
+        Icons.notes,
+        colorScheme.surfaceVariant,
+        colorScheme.onSurfaceVariant,
+      );
+    default:
+      return _FileIconStyle(
+        Icons.insert_drive_file,
+        colorScheme.surfaceVariant,
+        colorScheme.onSurfaceVariant,
+      );
+  }
+}
+
 Widget _pendingTile(
   BuildContext context,
   PlatformFile file, {
@@ -797,6 +870,7 @@ Widget _pendingTile(
   final sizeMb = file.size > 0
       ? '${(file.size / (1024 * 1024)).toStringAsFixed(1)} MB'
       : '';
+  final iconStyle = _fileIconStyle(colorScheme, file.name);
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
@@ -811,11 +885,11 @@ Widget _pendingTile(
           height: 40,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            color: colorScheme.primaryContainer,
+            color: iconStyle.bg,
           ),
           child: Icon(
-            Icons.insert_drive_file,
-            color: colorScheme.primary,
+            iconStyle.icon,
+            color: iconStyle.fg,
           ),
         ),
         const SizedBox(width: 12),
@@ -862,6 +936,7 @@ Widget _submissionTile(BuildContext context, SubmissionModel sub) {
   final submittedAt = DateFormat('HH:mm dd/MM').format(sub.submittedAt.toLocal());
   final sizeMb = sub.fileSize > 0 ? '${(sub.fileSize / (1024 * 1024)).toStringAsFixed(1)} MB' : '';
   final name = sub.fileKey.split('/').last;
+  final iconStyle = _fileIconStyle(colorScheme, name);
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
@@ -878,11 +953,11 @@ Widget _submissionTile(BuildContext context, SubmissionModel sub) {
               height: 40,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                color: colorScheme.errorContainer,
+                color: iconStyle.bg,
               ),
               child: Icon(
-                Icons.picture_as_pdf,
-                color: colorScheme.error,
+                iconStyle.icon,
+                color: iconStyle.fg,
               ),
             ),
             const SizedBox(width: 10),

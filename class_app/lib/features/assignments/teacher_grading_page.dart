@@ -11,6 +11,7 @@ import '../../data/models/classroom_detail_model.dart';
 import '../../data/models/submission_with_grade_model.dart';
 import '../../data/repositories/submission_repository_impl.dart';
 import 'assignment_chat_page.dart';
+import 'submissions_by_assignment_provider.dart';
 
 class TeacherGradingPage extends ConsumerStatefulWidget {
   const TeacherGradingPage({
@@ -33,6 +34,17 @@ class TeacherGradingPage extends ConsumerStatefulWidget {
 class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
   bool showSubmitted = true;
   String? selectedStudentId;
+  final TextEditingController _gradeController = TextEditingController();
+  final TextEditingController _feedbackController = TextEditingController();
+  bool _saving = false;
+  String? _activeSubmissionId;
+
+  @override
+  void dispose() {
+    _gradeController.dispose();
+    _feedbackController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +80,9 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         .toList();
 
     final canGrade = showSubmitted && filteredSubmitted.isNotEmpty;
+    final activeSubmission =
+        filteredSubmitted.isNotEmpty ? filteredSubmitted.first : null;
+    _syncFormWithSubmission(activeSubmission);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -80,78 +95,143 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         foregroundColor: colorScheme.onSurface,
         elevation: 0.5,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _headerCard(context),
-          const SizedBox(height: 12),
-          _sectionTitle(
-            context,
-            'Danh sách lớp',
-            count: studentMembers.length,
-            trailing: widget.classroomName,
-          ),
-          const SizedBox(height: 8),
-          _chips(
-            context,
-            submittedCount: submitted.length,
-            pendingCount: pendingCount,
-          ),
-          const SizedBox(height: 12),
-          if (submitted.isEmpty && pendingCount == 0)
-            Center(
-              child: Text(
-                'Chưa có học viên trong lớp.',
-                style: TextStyle(color: colorScheme.onSurfaceVariant),
-              ),
-            )
-          else ...[
-            _studentsScroller(
-              submittedUserIds,
-              showSubmitted,
-              selectedStudentId: selectedStudentId,
-              onSelect: (id) {
-                setState(() {
-                  selectedStudentId = selectedStudentId == id ? null : id;
-                });
-              },
+      body: RefreshIndicator(
+        color: colorScheme.primary,
+        onRefresh: () async {
+          await ref.refresh(
+            submissionsByAssignmentProvider(widget.assignment.id).future,
+          );
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: [
+            _headerCard(context),
+            const SizedBox(height: 12),
+            _sectionTitle(
+              context,
+              'Danh sách lớp',
+              count: studentMembers.length,
+              trailing: widget.classroomName,
+            ),
+            const SizedBox(height: 8),
+            _chips(
+              context,
+              submittedCount: submitted.length,
+              pendingCount: pendingCount,
             ),
             const SizedBox(height: 12),
-            if (showSubmitted) ...[
-              if (submitted.isEmpty)
-                Text(
-                  'Chưa có bài đã nộp.',
+            if (submitted.isEmpty && pendingCount == 0)
+              Center(
+                child: Text(
+                  'Chưa có học viên trong lớp.',
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
-                )
-              else
-                Column(
-                  children: filteredSubmitted
-                      .map((s) => _submissionTile(context, s, true))
-                      .toList(),
                 ),
-            ] else ...[
-              if (pendingMembers.isEmpty)
-                Text(
-                  'Không còn học viên chưa nộp.',
-                  style: TextStyle(color: colorScheme.onSurfaceVariant),
-                )
-              else
-                Column(
-                  children: filteredPending
-                      .map((member) => _pendingTile(context, member))
-                      .toList(),
-                ),
+              )
+            else ...[
+              _studentsScroller(
+                submittedUserIds,
+                showSubmitted,
+                selectedStudentId: selectedStudentId,
+                onSelect: (id) {
+                  setState(() {
+                    selectedStudentId = selectedStudentId == id ? null : id;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              if (showSubmitted) ...[
+                if (submitted.isEmpty)
+                  Text(
+                    'Chưa có bài đã nộp.',
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  )
+                else
+                  Column(
+                    children: filteredSubmitted
+                        .map((s) => _submissionTile(context, s, true))
+                        .toList(),
+                  ),
+              ] else ...[
+                if (pendingMembers.isEmpty)
+                  Text(
+                    'Không còn học viên chưa nộp.',
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  )
+                else
+                  Column(
+                    children: filteredPending
+                        .map((member) => _pendingTile(context, member))
+                        .toList(),
+                  ),
+              ],
             ],
+            const SizedBox(height: 24),
+            _sectionTitle(context, 'Đánh giá & Phản hồi'),
+            const SizedBox(height: 8),
+            _gradingBox(context, canGrade),
+            const SizedBox(height: 24),
           ],
-          const SizedBox(height: 24),
-          _sectionTitle(context, 'Đánh giá & Phản hồi'),
-          const SizedBox(height: 8),
-          _gradingBox(context, canGrade),
-          const SizedBox(height: 24),
-        ],
+        ),
       ),
-      bottomNavigationBar: _actionsBar(context, canGrade),
+      bottomNavigationBar: _actionsBar(context, canGrade, activeSubmission),
     );
+  }
+
+  void _syncFormWithSubmission(SubmissionWithGradeModel? submission) {
+    final newId = submission?.id;
+    if (newId == _activeSubmissionId) return;
+    _activeSubmissionId = newId;
+    if (submission == null) {
+      _gradeController.text = '';
+      _feedbackController.text = '';
+      return;
+    }
+    final gradeText = submission.grade?.toString() ?? '';
+    _gradeController.text = gradeText;
+    _feedbackController.text = submission.feedback ?? '';
+  }
+
+  double? _parseGrade(String raw) {
+    final normalized = raw.trim().replaceAll(',', '.');
+    if (normalized.isEmpty) return null;
+    return double.tryParse(normalized);
+  }
+
+  Future<void> _submitGrade({
+    required SubmissionWithGradeModel submission,
+    required double grade,
+    String? feedback,
+    required String status,
+  }) async {
+    setState(() => _saving = true);
+    try {
+      final repo = ref.read(submissionRepositoryProvider);
+      await repo.gradeSubmission(
+        submissionId: submission.id,
+        grade: grade,
+        feedback: feedback,
+        status: status,
+      );
+      if (!mounted) return;
+      ref.invalidate(submissionsByAssignmentProvider(widget.assignment.id));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            status == 'draft' ? 'Đã lưu nháp.' : 'Đã trả bài.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể lưu điểm: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 
   Widget _headerCard(BuildContext context) {
@@ -548,7 +628,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                 SizedBox(
                   width: 66,
                   child: TextFormField(
-                    enabled: enabled,
+                    controller: _gradeController,
+                    enabled: enabled && !_saving,
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -625,7 +706,8 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
             ),
             const SizedBox(height: 10),
             TextFormField(
-              enabled: enabled,
+              controller: _feedbackController,
+              enabled: enabled && !_saving,
               maxLines: 4,
               decoration: InputDecoration(
                 hintText: 'Nhập nhận xét cho học viên...',
@@ -659,9 +741,45 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     );
   }
 
-  Widget _actionsBar(BuildContext context, bool enabled) {
+  Widget _actionsBar(
+    BuildContext context,
+    bool enabled,
+    SubmissionWithGradeModel? activeSubmission,
+  ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final maxPoints = widget.assignment.maxPoints ?? 100;
+    final canSubmit = enabled && !_saving;
+
+    Future<void> handleSubmit(String status) async {
+      if (!canSubmit) return;
+      if (activeSubmission == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Chọn học viên đã nộp bài để chấm.')),
+        );
+        return;
+      }
+      final grade = _parseGrade(_gradeController.text);
+      if (grade == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vui lòng nhập điểm hợp lệ.')),
+        );
+        return;
+      }
+      if (grade < 0 || grade > maxPoints) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Điểm phải từ 0 đến $maxPoints.')),
+        );
+        return;
+      }
+      await _submitGrade(
+        submission: activeSubmission,
+        grade: grade,
+        feedback: _feedbackController.text.trim(),
+        status: status,
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
       decoration: BoxDecoration(
@@ -678,7 +796,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         children: [
           Expanded(
             child: OutlinedButton(
-              onPressed: enabled ? () {} : null,
+              onPressed: canSubmit ? () => handleSubmit('draft') : null,
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 side: BorderSide(color: theme.dividerColor),
@@ -695,7 +813,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: enabled ? () {} : null,
+              onPressed: canSubmit ? () => handleSubmit('graded') : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: colorScheme.primary,
                 foregroundColor: colorScheme.onPrimary,

@@ -252,28 +252,55 @@ class _ClassroomsPageState extends ConsumerState<ClassroomsPage> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          title: const Text('Tham gia lớp'),
-          content: TextField(
-            controller: codeController,
-            decoration: const InputDecoration(
-              labelText: 'Mã mời',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Hủy'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Tham gia'),
-            ),
-          ],
+        return ValueListenableBuilder<TextEditingValue>(
+          valueListenable: codeController,
+          builder: (context, value, _) {
+            final canSubmit = value.text.trim().isNotEmpty;
+            return _ClassroomActionDialog(
+              icon: Icons.login_rounded,
+              title: 'Tham gia lớp học',
+              subtitle: 'Nhập mã mời do giáo viên cung cấp.',
+              primaryLabel: 'Tham gia',
+              isPrimaryEnabled: canSubmit,
+              onPrimary: () => Navigator.pop(context, true),
+              onCancel: () => Navigator.pop(context, false),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: codeController,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.characters,
+                    textInputAction: TextInputAction.done,
+                    decoration: _dialogInputDecoration(
+                      context,
+                      label: 'Mã lớp',
+                      hint: 'VD: 8X2KQ',
+                      icon: Icons.key_rounded,
+                    ),
+                    style: const TextStyle(
+                      letterSpacing: 1.4,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    onSubmitted: (_) {
+                      if (canSubmit) {
+                        Navigator.pop(context, true);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Mã có thể gồm chữ và số.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -304,41 +331,67 @@ class _ClassroomsPageState extends ConsumerState<ClassroomsPage> {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          title: const Text('Tạo lớp mới'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên lớp',
-                  border: OutlineInputBorder(),
-                ),
+        return ValueListenableBuilder<TextEditingValue>(
+          valueListenable: nameController,
+          builder: (context, value, _) {
+            final canSubmit = value.text.trim().isNotEmpty;
+            return _ClassroomActionDialog(
+              icon: Icons.add_circle_rounded,
+              title: 'Tạo lớp mới',
+              subtitle: 'Tạo không gian học tập và mời học viên tham gia.',
+              primaryLabel: 'Tạo lớp',
+              isPrimaryEnabled: canSubmit,
+              onPrimary: () => Navigator.pop(context, true),
+              onCancel: () => Navigator.pop(context, false),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    autofocus: true,
+                    textInputAction: TextInputAction.next,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: _dialogInputDecoration(
+                      context,
+                      label: 'Tên lớp',
+                      hint: 'VD: Toán 12A1',
+                      icon: Icons.class_,
+                    ),
+                    onSubmitted: (_) => FocusScope.of(context).nextFocus(),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: descController,
+                    textInputAction: TextInputAction.done,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: _dialogInputDecoration(
+                      context,
+                      label: 'Mô tả (tuỳ chọn)',
+                      hint: 'VD: Lịch học thứ 2, 4, 6',
+                      icon: Icons.notes_rounded,
+                    ),
+                    maxLines: 2,
+                    onSubmitted: (_) {
+                      if (canSubmit) {
+                        Navigator.pop(context, true);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Bạn có thể chỉnh sửa thông tin lớp sau khi tạo.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả (tuỳ chọn)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Hủy'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Tạo'),
-            ),
-          ],
+            );
+          },
         );
       },
     );
@@ -404,6 +457,22 @@ class _ClassroomsPageState extends ConsumerState<ClassroomsPage> {
           ),
         );
       },
+    );
+  }
+
+  InputDecoration _dialogInputDecoration(
+    BuildContext context, {
+    required String label,
+    String? hint,
+    required IconData icon,
+  }) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: Icon(icon),
+      prefixIconColor: colorScheme.primary,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
 }
@@ -661,6 +730,128 @@ class _FilterPill extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ClassroomActionDialog extends StatelessWidget {
+  const _ClassroomActionDialog({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.child,
+    required this.primaryLabel,
+    required this.onPrimary,
+    required this.onCancel,
+    required this.isPrimaryEnabled,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget child;
+  final String primaryLabel;
+  final VoidCallback onPrimary;
+  final VoidCallback onCancel;
+  final bool isPrimaryEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      backgroundColor: colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      colorScheme.primary.withValues(alpha: 0.18),
+                      colorScheme.surface,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  border: Border(
+                    bottom: BorderSide(color: theme.dividerColor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(icon, color: colorScheme.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+                child: child,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onCancel,
+                        child: const Text('Hủy'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: isPrimaryEnabled ? onPrimary : null,
+                        child: Text(primaryLabel),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

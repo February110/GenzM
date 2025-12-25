@@ -40,10 +40,12 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
     super.dispose();
   }
 
-  AssignmentCommentParams get _params => AssignmentCommentParams(
-        assignmentId: widget.assignmentId,
-        studentId: widget.isTeacher ? widget.studentId : null,
-      );
+  AssignmentCommentParams _buildParams(String? currentUserId) {
+    return AssignmentCommentParams(
+      assignmentId: widget.assignmentId,
+      studentId: widget.isTeacher ? widget.studentId : currentUserId,
+    );
+  }
 
   Future<void> _send() async {
     final text = _controller.text.trim();
@@ -56,14 +58,14 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
     }
     setState(() => _sending = true);
     try {
+      final currentUser = ref.read(profileControllerProvider).user;
+      final params = _buildParams(currentUser?.id);
       await ref.read(assignmentRepositoryProvider).addComment(
             assignmentId: widget.assignmentId,
             content: text,
             studentId: widget.isTeacher ? widget.studentId : null,
           );
-      ref.invalidate(assignmentCommentsProvider(_params));
-      final _ =
-          await ref.refresh(assignmentCommentsProvider(_params).future);
+      await ref.read(assignmentCommentsProvider(params).notifier).refresh();
       _controller.clear();
       _scrollToBottom();
     } catch (error) {
@@ -77,9 +79,10 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
     }
   }
 
-  Future<void> _refresh() {
-    ref.invalidate(assignmentCommentsProvider(_params));
-    return ref.refresh(assignmentCommentsProvider(_params).future);
+  Future<void> _refresh() async {
+    final currentUser = ref.read(profileControllerProvider).user;
+    final params = _buildParams(currentUser?.id);
+    await ref.read(assignmentCommentsProvider(params).notifier).refresh();
   }
 
   void _scrollToBottom() {
@@ -99,12 +102,18 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final currentUser = ref.watch(profileControllerProvider).user;
-    final commentsAsync = ref.watch(assignmentCommentsProvider(_params));
+    final params = _buildParams(currentUser?.id);
+    final commentsState = ref.watch(assignmentCommentsProvider(params));
     final counterpart = widget.isTeacher
         ? (widget.studentName?.isNotEmpty == true ? widget.studentName! : 'Học viên')
         : (widget.teacherName?.isNotEmpty == true ? widget.teacherName! : 'Giáo viên');
 
-    commentsAsync.whenData((_) => _scrollToBottom());
+    ref.listen(assignmentCommentsProvider(params), (prev, next) {
+      final prevCount = prev?.comments.length ?? 0;
+      if (next.comments.length > prevCount) {
+        _scrollToBottom();
+      }
+    });
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -185,155 +194,11 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
             child: RefreshIndicator(
               onRefresh: _refresh,
               color: colorScheme.primary,
-              child: commentsAsync.when(
-                loading: () => ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-                  ],
-                ),
-                error: (error, _) => ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Không tải được trao đổi.',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: colorScheme.error,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            error.toString(),
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: _refresh,
-                            icon: const Icon(Icons.refresh),
-                            label: const Text('Thử lại'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                data: (comments) {
-                  if (widget.isTeacher &&
-                      (widget.studentId == null || widget.studentId!.isEmpty)) {
-                    return ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
-                        Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text('Chọn một học viên để bắt đầu trao đổi.'),
-                        ),
-                      ],
-                    );
-                  }
-                  final list = [...comments]
-                    ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-                  if (list.isEmpty) {
-                    return ListView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Center(
-                            child: Text(
-                              'Chưa có trao đổi nào.\nHãy gửi tin nhắn đầu tiên!',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: list.length,
-                    itemBuilder: (_, index) {
-                      final c = list[index];
-                      final isMine = c.userId == currentUser?.id;
-                      final timeLabel =
-                          DateFormat('HH:mm dd/MM').format(c.createdAt.toLocal());
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: Column(
-                          crossAxisAlignment: isMine
-                              ? CrossAxisAlignment.end
-                              : CrossAxisAlignment.start,
-                          children: [
-                            if (!isMine)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Text(
-                                  c.userName?.isNotEmpty == true
-                                      ? c.userName!
-                                      : 'Người dùng',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            Container(
-                              decoration: BoxDecoration(
-                                color: isMine
-                                    ? colorScheme.primary
-                                    : colorScheme.surface,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: isMine
-                                      ? colorScheme.primary
-                                      : theme.dividerColor,
-                                ),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              child: Text(
-                                c.content,
-                                style: TextStyle(
-                                  color: isMine
-                                      ? colorScheme.onPrimary
-                                      : colorScheme.onSurface,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              timeLabel,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
+              child: _buildCommentsBody(
+                commentsState,
+                currentUser?.id,
+                theme,
+                colorScheme,
               ),
             ),
           ),
@@ -381,35 +246,191 @@ class _AssignmentChatPageState extends ConsumerState<AssignmentChatPage> {
                   SizedBox(
                     height: 46,
                     width: 46,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      backgroundColor: colorScheme.primary,
-                      shape: const StadiumBorder(),
-                    ),
-                    onPressed: _sending ? null : _send,
-                    child: _sending
-                        ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        backgroundColor: colorScheme.primary,
+                        shape: const StadiumBorder(),
+                      ),
+                      onPressed: _sending ? null : _send,
+                      child: _sending
+                          ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                color: colorScheme.onPrimary,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Icon(
+                              Icons.send,
+                              size: 18,
                               color: colorScheme.onPrimary,
-                              strokeWidth: 2,
                             ),
-                          )
-                        : Icon(
-                            Icons.send,
-                            size: 18,
-                            color: colorScheme.onPrimary,
-                          ),
+                    ),
                   ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommentsBody(
+    AssignmentCommentsState commentsState,
+    String? currentUserId,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    if (commentsState.isLoading) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ],
+      );
+    }
+
+    final error = commentsState.error;
+    if (error != null) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Không tải được trao đổi.',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  error.toString(),
+                  style: TextStyle(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Thử lại'),
                 ),
               ],
             ),
           ),
+        ],
+      );
+    }
+
+    if (widget.isTeacher &&
+        (widget.studentId == null || widget.studentId!.isEmpty)) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Chọn một học viên để bắt đầu trao đổi.'),
           ),
         ],
-      ),
+      );
+    }
+
+    final list = [...commentsState.comments]
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    if (list.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Text(
+                'Chưa có trao đổi nào.\nHãy gửi tin nhắn đầu tiên!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: list.length,
+      itemBuilder: (_, index) {
+        final c = list[index];
+        final isMine = c.userId == currentUserId;
+        final timeLabel =
+            DateFormat('HH:mm dd/MM').format(c.createdAt.toLocal());
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            crossAxisAlignment:
+                isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            children: [
+              if (!isMine)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    c.userName?.isNotEmpty == true ? c.userName! : 'Người dùng',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              Container(
+                decoration: BoxDecoration(
+                  color: isMine ? colorScheme.primary : colorScheme.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isMine ? colorScheme.primary : theme.dividerColor,
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Text(
+                  c.content,
+                  style: TextStyle(
+                    color: isMine
+                        ? colorScheme.onPrimary
+                        : colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                timeLabel,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

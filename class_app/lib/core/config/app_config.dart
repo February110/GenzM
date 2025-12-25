@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
   static String get apiBaseUrl {
@@ -31,5 +32,32 @@ class AppConfig {
         Uri.tryParse(url.replaceAll('\\', '/'))?.path.toLowerCase() ??
         url.toLowerCase();
     return parsedPath.endsWith('.svg') || parsedPath.endsWith('/svg') || parsedPath.endsWith('svg');
+  }
+
+  static String get stunUrl =>
+      dotenv.env['STUN_URL'] ?? 'stun:stun.l.google.com:19302';
+
+  static String get turnUrl => dotenv.env['TURN_URL'] ?? '';
+
+  static String get turnUsername => dotenv.env['TURN_USERNAME'] ?? '';
+
+  static String get turnPassword => dotenv.env['TURN_PASSWORD'] ?? '';
+
+  static List<Map<String, dynamic>> get iceServers {
+    final servers = <Map<String, dynamic>>[];
+    if (stunUrl.isNotEmpty) {
+      servers.add({'urls': stunUrl});
+    }
+    if (turnUrl.isNotEmpty) {
+      final server = <String, dynamic>{'urls': turnUrl};
+      if (turnUsername.isNotEmpty) {
+        server['username'] = turnUsername;
+      }
+      if (turnPassword.isNotEmpty) {
+        server['credential'] = turnPassword;
+      }
+      servers.add(server);
+    }
+    return servers;
   }
 }

@@ -61,6 +61,30 @@ class SubmissionRepositoryImpl implements SubmissionRepository {
       rethrow;
     }
   }
+
+  @override
+  Future<void> gradeSubmission({
+    required String submissionId,
+    required double grade,
+    String? feedback,
+    String status = 'graded',
+  }) async {
+    try {
+      await _remote.gradeSubmission(
+        submissionId: submissionId,
+        grade: grade,
+        feedback: feedback,
+        status: status,
+      );
+    } catch (error, stackTrace) {
+      _logger.log(
+        'grade submission failed',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
 }
 
 final submissionRepositoryProvider = Provider<SubmissionRepository>((ref) {

@@ -22,17 +22,29 @@ class AnnouncementCommentModel {
       if (v is String) {
         return DateTime.tryParse(v) ?? DateTime.now();
       }
+      if (v is DateTime) {
+        return v;
+      }
       return DateTime.now();
     }
 
+    // Hỗ trợ cả camelCase và PascalCase từ C# backend
+    final id = json['id'] ?? json['Id'];
+    final announcementId = json['announcementId'] ?? json['AnnouncementId'];
+    final userId = json['userId'] ?? json['UserId'];
+    final content = json['content'] ?? json['Content'];
+    final userName = json['userName'] ?? json['UserName'];
+    final userAvatar = json['userAvatar'] ?? json['UserAvatar'];
+    final createdAt = json['createdAt'] ?? json['CreatedAt'];
+
     return AnnouncementCommentModel(
-      id: json['id']?.toString() ?? '',
-      announcementId: json['announcementId']?.toString() ?? '',
-      userId: json['userId']?.toString() ?? '',
-      content: json['content'] as String? ?? '',
-      userName: json['userName'] as String?,
-      userAvatar: json['userAvatar'] as String?,
-      createdAt: parseDate(json['createdAt']),
+      id: id?.toString() ?? '',
+      announcementId: announcementId?.toString() ?? '',
+      userId: userId?.toString() ?? '',
+      content: content as String? ?? '',
+      userName: userName as String?,
+      userAvatar: userAvatar as String?,
+      createdAt: parseDate(createdAt),
     );
   }
 }

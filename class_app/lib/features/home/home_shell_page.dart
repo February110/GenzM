@@ -10,6 +10,7 @@ import '../../core/services/permission_service.dart';
 import '../profile/profile_controller.dart';
 import '../assignments/assignments_controller.dart';
 import '../assignments/assignment_detail_page.dart';
+import '../assignments/submission_status_provider.dart';
 import '../announcements/announcements_controller.dart';
 import '../notifications/notifications_controller.dart';
 
@@ -66,10 +67,35 @@ class _HomeShellPageState extends ConsumerState<HomeShellPage> {
       if (last.assignmentId != null && last.assignmentId!.isNotEmpty) {
         ref.invalidate(assignmentDetailProvider(last.assignmentId!));
       }
+      if (last.type == 'grade') {
+        ref.invalidate(mySubmissionsProvider);
+      }
+      // Hiển thị thông báo với format phù hợp cho comment
+      final isComment = last.type.contains('comment');
+      final content = isComment && last.actorName != null && last.actorName!.isNotEmpty
+          ? RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+                children: [
+                  TextSpan(
+                    text: '${last.actorName}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const TextSpan(text: ': '),
+                  TextSpan(text: last.message),
+                ],
+              ),
+            )
+          : Text('${last.title}: ${last.message}');
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${last.title}: ${last.message}'),
+          content: content,
           behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: isComment ? 5 : 4),
         ),
       );
     });

@@ -385,38 +385,60 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
   Future<void> _submitInline() async {
     final text = _commentController.text.trim();
     if (text.isEmpty) return;
-    setState(() => _sendingComment = true);
-    final commentsProvider = announcementCommentsProvider(widget.item.id);
-    try {
-      await ref.read(announcementRepositoryProvider).addComment(
-            announcementId: widget.item.id,
-            content: text,
-          );
-      ref.invalidate(commentsProvider);
-      final updated = await ref.refresh(commentsProvider.future);
-      if (_scrollController.hasClients && updated.isNotEmpty) {
-        await Future.delayed(const Duration(milliseconds: 50));
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
+    
+    final profile = ref.read(profileControllerProvider).user;
+    if (profile == null) return;
+    
+    final commentsNotifier = ref.read(announcementCommentsProvider((
+      announcementId: widget.item.id,
+      classroomId: widget.classroomId,
+    )).notifier);
+    
+    // Thêm optimistic comment ngay lập tức TRƯỚC khi xóa text và gửi API
+    // Đảm bảo comment hiện ngay lập tức trên UI
+    commentsNotifier.addOptimisticComment(
+      content: text,
+      userId: profile.id,
+      userName: profile.name ?? 'Người dùng',
+      userAvatar: profile.avatar,
+    );
+    
+    // Xóa text sau khi đã thêm optimistic comment
+    _commentController.clear();
+    
+    // Scroll đến cuối ngay lập tức (sau khi state đã update)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
+    
+    // Gửi comment lên server ở background (realtime sẽ tự động cập nhật khi nhận được từ server)
+    // Không await để không block UI
+    ref.read(announcementRepositoryProvider).addComment(
+          announcementId: widget.item.id,
+          content: text,
+        ).catchError((error) {
+      // Nếu lỗi, hiển thị thông báo lỗi
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Không thể gửi bình luận: ${error.toString()}')),
         );
       }
-      _commentController.clear();
-    } finally {
-      if (mounted) {
-        setState(() => _sendingComment = false);
-      }
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final commentsAsync = widget.showPreview
-        ? ref.watch(announcementCommentsProvider(widget.item.id))
+    final commentsState = widget.showPreview
+        ? ref.watch(announcementCommentsProvider((
+            announcementId: widget.item.id,
+            classroomId: widget.classroomId,
+          )))
         : null;
+    final comments = commentsState?.comments ?? [];
     final creatorAvatar = AppConfig.resolveAssetUrl(widget.item.createdByAvatar);
     final attachments = widget.item.attachments;
     final profile = ref.watch(profileControllerProvider).user;
@@ -537,229 +559,174 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
               Divider(color: theme.dividerColor, height: 24),
 
               // Comments preview
-              if (widget.showPreview && commentsAsync != null)
-                commentsAsync.when(
-                  loading: () => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 6),
-                    child: LinearProgressIndicator(minHeight: 2),
-                  ),
-                  error: (error, _) => Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      error.toString(),
-                      style: TextStyle(
-                        color: colorScheme.error,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  data: (comments) {
-                    final preview = comments.take(2).toList();
-                    final hasMore = comments.length > preview.length;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 18,
-                              color: colorScheme.primary,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Nhận xét (${comments.length})',
+              if (widget.showPreview && commentsState != null)
+                commentsState.isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 6),
+                        child: LinearProgressIndicator(minHeight: 2),
+                      )
+                    : commentsState.error != null
+                        ? Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Text(
+                              commentsState.error.toString(),
                               style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: colorScheme.onSurface,
+                                color: colorScheme.error,
+                                fontSize: 12,
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        if (comments.isEmpty)
-                          Text(
-                            'Chưa có bình luận.',
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                              fontSize: 12.5,
                             ),
                           )
-                        else ...[
-                          ...preview.map(
-                            (c) => Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _InlineCommentTile(
-                                comment: c,
-                              ),
-                            ),
-                          ),
-                          if (hasMore)
-                            GestureDetector(
-                              onTap: () {
-                                showModalBottomSheet<void>(
-                                  context: context,
-                                  isScrollControlled: true,
-                                  backgroundColor: colorScheme.surface,
-                                  shape: const RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.vertical(
-                                      top: Radius.circular(16),
-                                    ),
+                        : Builder(
+                            builder: (_) {
+                              final preview = comments.take(2).toList();
+                              final hasMore = comments.length > preview.length;
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.chat_bubble_outline,
+                                        size: 18,
+                                        color: colorScheme.primary,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Nhận xét (${comments.length})',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  builder: (_) {
-                                    return DraggableScrollableSheet(
-                                      initialChildSize: 0.7,
-                                      minChildSize: 0.5,
-                                      maxChildSize: 0.9,
-                                      expand: false,
-                                      builder: (_, scrollController) {
-                                        return Padding(
-                                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Center(
-                                                child: Container(
-                                                  width: 36,
-                                                  height: 4,
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        colorScheme.surfaceVariant,
-                                                    borderRadius: BorderRadius.circular(999),
-                                                  ),
-                                                ),
+                                  const SizedBox(height: 10),
+                                  if (comments.isEmpty)
+                                    Text(
+                                      'Chưa có bình luận.',
+                                      style: TextStyle(
+                                        color: colorScheme.onSurfaceVariant,
+                                        fontSize: 13,
+                                      ),
+                                    )
+                                  else ...[
+                                    ...preview.map(
+                                      (c) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 10),
+                                        child: _InlineCommentTile(
+                                          comment: c,
+                                        ),
+                                      ),
+                                    ),
+                                    if (hasMore)
+                                      GestureDetector(
+                                        onTap: () {
+                                          showModalBottomSheet<void>(
+                                            context: context,
+                                            isScrollControlled: true,
+                                            backgroundColor: colorScheme.surface,
+                                            shape: const RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.vertical(
+                                                top: Radius.circular(16),
                                               ),
-                                              const SizedBox(height: 12),
-                                              Row(
-                                                children: [
-                                                  Icon(
-                                                    Icons.chat_bubble_outline,
-                                                    size: 20,
-                                                    color: colorScheme.primary,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    'Tất cả bình luận (${comments.length})',
-                                                    style: TextStyle(
-                                                      fontWeight: FontWeight.w800,
-                                                      fontSize: 16,
-                                                      color: colorScheme.onSurface,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              const SizedBox(height: 12),
-                                              Expanded(
-                                                child: ListView.separated(
-                                                  controller: scrollController,
-                                                  itemBuilder: (_, idx) => _InlineCommentTile(
-                                                    comment: comments[idx],
-                                                  ),
-                                                  separatorBuilder: (_, __) =>
-                                                      const SizedBox(height: 12),
-                                                  itemCount: comments.length,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        );
-                                      },
-                                    );
-                                  },
-                                );
-                              },
-                              child: Text(
-                                'Xem thêm ${comments.length - preview.length} bình luận...',
-                                style: TextStyle(
-                                  color: colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12.5,
-                                ),
-                              ),
-                            ),
-                        ],
-                        const SizedBox(height: 12),
-                        Row(
-                            children: [
-                            _AvatarBubble(
-                              name: profile?.name,
-                              avatarUrl: currentAvatar,
-                              radius: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                controller: _commentController,
-                                decoration: InputDecoration(
-                                  hintText: 'Thêm nhận xét trong lớp học...',
-                                  hintStyle: TextStyle(
-                                    color: colorScheme.onSurfaceVariant,
-                                    fontSize: 13,
-                                  ),
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 10,
-                                  ),
-                                  filled: true,
-                                  fillColor: colorScheme.surfaceVariant,
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                      color: theme.dividerColor,
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                      color: theme.dividerColor,
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide(
-                                      color: colorScheme.primary,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                ),
-                                minLines: 1,
-                                maxLines: 3,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            SizedBox(
-                              height: 44,
-                              width: 44,
-                              child: ElevatedButton(
-                                onPressed: _sendingComment ? null : _submitInline,
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  shape: const CircleBorder(),
-                                  backgroundColor: colorScheme.primary,
-                                ),
-                                child: _sendingComment
-                                    ? SizedBox(
-                                        height: 16,
-                                        width: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                            colorScheme.onPrimary,
+                                            ),
+                                            builder: (_) => _AnnouncementCommentsSheet(
+                                              announcementId: widget.item.id,
+                                              classroomId: widget.classroomId,
+                                            ),
+                                          );
+                                        },
+                                        child: Text(
+                                          'Xem thêm ${comments.length - preview.length} bình luận...',
+                                          style: TextStyle(
+                                            color: colorScheme.primary,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 12.5,
                                           ),
                                         ),
-                                      )
-                                    : const Icon(Icons.send, size: 18),
-                              ),
-                            ),
-                          ],
+                                      ),
+                                  ],
+                                ],
+                              );
+                            },
+                          ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _AvatarBubble(
+                    name: profile?.name,
+                    avatarUrl: currentAvatar,
+                    radius: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _commentController,
+                      decoration: InputDecoration(
+                        hintText: 'Thêm nhận xét trong lớp học...',
+                        hintStyle: TextStyle(
+                          color: colorScheme.onSurfaceVariant,
+                          fontSize: 13,
                         ),
-                      ],
-                    );
-                  },
-                ),
-
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        filled: true,
+                        fillColor: colorScheme.surfaceVariant,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.dividerColor,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: theme.dividerColor,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: colorScheme.primary,
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                      minLines: 1,
+                      maxLines: 3,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    height: 44,
+                    width: 44,
+                    child: ElevatedButton(
+                      onPressed: _sendingComment ? null : _submitInline,
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        shape: const CircleBorder(),
+                        backgroundColor: colorScheme.primary,
+                      ),
+                      child: _sendingComment
+                          ? SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(
+                                  colorScheme.onPrimary,
+                                ),
+                              ),
+                            )
+                          : const Icon(Icons.send, size: 18),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -768,6 +735,108 @@ class _AnnouncementCardState extends ConsumerState<AnnouncementCard> {
   }
 
 
+}
+
+class _AnnouncementCommentsSheet extends ConsumerWidget {
+  const _AnnouncementCommentsSheet({
+    required this.announcementId,
+    required this.classroomId,
+  });
+
+  final String announcementId;
+  final String classroomId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final commentsState = ref.watch(announcementCommentsProvider((
+      announcementId: announcementId,
+      classroomId: classroomId,
+    )));
+    final comments = commentsState.comments;
+
+    Widget body;
+    if (commentsState.isLoading && comments.isEmpty) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (commentsState.error != null && comments.isEmpty) {
+      body = Center(
+        child: Text(
+          commentsState.error.toString(),
+          style: TextStyle(color: colorScheme.error, fontSize: 12),
+          textAlign: TextAlign.center,
+        ),
+      );
+    } else if (comments.isEmpty) {
+      body = Center(
+        child: Text(
+          'Chưa có bình luận.',
+          style: TextStyle(
+            color: colorScheme.onSurfaceVariant,
+            fontSize: 13,
+          ),
+        ),
+      );
+    } else {
+      body = ListView.separated(
+        itemBuilder: (_, idx) => _InlineCommentTile(comment: comments[idx]),
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemCount: comments.length,
+      );
+    }
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.9,
+      expand: false,
+      builder: (_, scrollController) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceVariant,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    Icons.chat_bubble_outline,
+                    size: 20,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Tất cả bình luận (${comments.length})',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: PrimaryScrollController(
+                  controller: scrollController,
+                  child: body,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _AvatarBubble extends StatelessWidget {

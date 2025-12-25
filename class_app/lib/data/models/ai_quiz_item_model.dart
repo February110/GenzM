@@ -11,10 +11,17 @@ class AiQuizItemModel {
   final String answer;
   final String? explanation;
 
+  static final RegExp _optionLabelPattern =
+      RegExp(r'^[A-Ha-h]\s*[\).:\-]\s*');
+
   factory AiQuizItemModel.fromJson(Map<String, dynamic> json) {
     final optionsRaw = json['options'];
     final parsedOptions = optionsRaw is List
-        ? optionsRaw.map((e) => e?.toString() ?? '').where((e) => e.isNotEmpty).toList()
+        ? optionsRaw
+            .map((e) => e?.toString() ?? '')
+            .map(_normalizeOption)
+            .where((e) => e.isNotEmpty)
+            .toList()
         : <String>[];
 
     return AiQuizItemModel(
@@ -23,5 +30,17 @@ class AiQuizItemModel {
       answer: json['answer']?.toString() ?? '',
       explanation: json['explanation']?.toString(),
     );
+  }
+
+  static String _normalizeOption(String option) {
+    var normalized = option.trim();
+    while (true) {
+      final match = _optionLabelPattern.firstMatch(normalized);
+      if (match == null) {
+        break;
+      }
+      normalized = normalized.substring(match.end).trimLeft();
+    }
+    return normalized;
   }
 }

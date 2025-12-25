@@ -21,7 +21,9 @@ class MeetingRoomPage extends ConsumerStatefulWidget {
 
 class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
   final Map<String, RTCPeerConnection> _peers = {};
+  final Map<String, bool> _peerInitiators = {};
   final Map<String, RTCVideoRenderer> _remoteRenderers = {};
+  final Map<String, List<RTCIceCandidate>> _pendingIce = {};
   RTCVideoRenderer? _screenRenderer;
   final List<_ChatMessage> _messages = [];
   final ValueNotifier<int> _chatVersion = ValueNotifier<int>(0);
@@ -33,8 +35,10 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
   final List<RTCRtpSender> _screenSenders = [];
   bool _micOn = true;
   bool _camOn = true;
+  bool _receiveVideo = true;
   bool _sharing = false;
   bool _connecting = true;
+  bool _initialSnapshotHandled = false;
   late final bool _isHost;
   String? _pinnedId;
 
@@ -50,18 +54,67 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
 
   Future<void> _init() async {
     await _localRenderer.initialize();
-    await _startLocalMedia();
+    final prefs = await _askMediaPrefs();
+    if (!mounted) return;
+    if (prefs == null) {
+      Navigator.of(context).pop();
+      return;
+    }
+    _micOn = prefs.micOn;
+    _camOn = prefs.camOn;
+    _receiveVideo = prefs.receiveVideo;
+    await _startLocalMedia(micOn: _micOn, camOn: _camOn);
     await _connectHub();
     setState(() => _connecting = false);
   }
 
-  Future<void> _startLocalMedia() async {
-    final stream = await navigator.mediaDevices.getUserMedia({
-      'audio': true,
-      'video': {
-        'facingMode': 'user',
-      },
-    });
+  Future<void> _startLocalMedia({required bool micOn, required bool camOn}) async {
+    if (!micOn && !camOn) {
+      _localStream = await createLocalMediaStream('local');
+      _localRenderer.srcObject = null;
+      return;
+    }
+    MediaStream? stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        'audio': micOn,
+        'video': camOn
+            ? {
+                'facingMode': 'user',
+              }
+            : false,
+      });
+    } catch (_) {
+      if (camOn) {
+        if (micOn) {
+          stream = await navigator.mediaDevices.getUserMedia({
+            'audio': true,
+            'video': false,
+          });
+          _camOn = false;
+          if (mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Không thể mở camera, chuyển sang chỉ âm thanh.'),
+                ),
+              );
+            });
+          }
+        } else {
+          _camOn = false;
+          stream = await createLocalMediaStream('local');
+        }
+      } else if (micOn) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          'audio': true,
+          'video': false,
+        });
+      } else {
+        stream = await createLocalMediaStream('local');
+      }
+    }
     _localStream = stream;
     _localRenderer.srcObject = stream;
   }
@@ -117,16 +170,43 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
 
   Future<RTCPeerConnection> _createPeer(String remoteId, {required bool isCaller}) async {
     final config = {
-      'iceServers': [
-        {'urls': 'stun:stun.l.google.com:19302'},
-      ],
+      'iceServers': AppConfig.iceServers,
     };
     final pc = await createPeerConnection(config);
     _peers[remoteId] = pc;
+    _peerInitiators[remoteId] = isCaller;
 
     _localStream?.getTracks().forEach((track) {
       pc.addTrack(track, _localStream!);
     });
+    if (!_receiveVideo) {
+      final transceivers = await pc.getTransceivers();
+      for (final transceiver in transceivers) {
+        if (transceiver.sender.track?.kind == 'video') {
+          await transceiver.setDirection(TransceiverDirection.SendOnly);
+        }
+      }
+    }
+    final hasAudio = _localStream?.getAudioTracks().isNotEmpty ?? false;
+    final hasVideo = _localStream?.getVideoTracks().isNotEmpty ?? false;
+    if (!hasAudio) {
+      await pc.addTransceiver(
+        kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
+        init: RTCRtpTransceiverInit(
+          direction: TransceiverDirection.RecvOnly,
+        ),
+      );
+    }
+    if (!hasVideo) {
+      if (_receiveVideo) {
+        await pc.addTransceiver(
+          kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
+          init: RTCRtpTransceiverInit(
+            direction: TransceiverDirection.RecvOnly,
+          ),
+        );
+      }
+    }
 
     pc.onIceCandidate = (candidate) {
       if (candidate != null) {
@@ -135,15 +215,20 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
     };
 
     pc.onTrack = (event) async {
-      if (event.track.kind == 'video' || event.track.kind == 'audio') {
-        final renderer = RTCVideoRenderer();
-        await renderer.initialize();
+      if (event.track.kind != 'video' || !_receiveVideo) return;
+      final renderer = RTCVideoRenderer();
+      await renderer.initialize();
+      if (event.streams.isNotEmpty) {
         renderer.srcObject = event.streams.first;
-        setState(() {
-          _remoteRenderers[remoteId]?.dispose();
-          _remoteRenderers[remoteId] = renderer;
-        });
+      } else {
+        final stream = await createLocalMediaStream('remote-$remoteId');
+        stream.addTrack(event.track);
+        renderer.srcObject = stream;
       }
+      setState(() {
+        _remoteRenderers[remoteId]?.dispose();
+        _remoteRenderers[remoteId] = renderer;
+      });
     };
 
     if (isCaller) {
@@ -159,6 +244,7 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
     if (args == null || args.isEmpty) return;
     final list = args.first as List<dynamic>;
     final myId = _hub?.connectionId;
+    final shouldInitiateCalls = !_initialSnapshotHandled;
     _participants.clear();
     for (final p in list) {
       final obj = p as Map;
@@ -178,8 +264,11 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
       }
       if (connId == null || connId == myId) continue;
       if (_peers.containsKey(connId)) continue;
-      _createPeer(connId, isCaller: true);
+      if (shouldInitiateCalls) {
+        _createPeer(connId, isCaller: true);
+      }
     }
+    _initialSnapshotHandled = true;
     setState(() {});
   }
 
@@ -195,7 +284,6 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
     _participants.add(
       _Participant(connectionId: from, displayName: name, userId: userId),
     );
-    _createPeer(from, isCaller: true);
     setState(() {});
   }
 
@@ -204,6 +292,7 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
     final connId = (args.first as Map)['connectionId']?.toString();
     if (connId == null) return;
     _peers.remove(connId)?.close();
+    _peerInitiators.remove(connId);
     _remoteRenderers.remove(connId)?.dispose();
     _participants.removeWhere((p) => p.connectionId == connId);
     setState(() {});
@@ -214,12 +303,16 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
     final payload = args.first as Map;
     final from = payload['from']?.toString();
     if (from == null) return;
+    if (_peerInitiators[from] == true) {
+      return;
+    }
     final offerMap = Map<String, dynamic>.from(payload['payload'] as Map);
-    final pc = await _createPeer(from, isCaller: false);
+    final pc = _peers[from] ?? await _createPeer(from, isCaller: false);
     await pc.setRemoteDescription(RTCSessionDescription(
       offerMap['sdp'],
       offerMap['type'],
     ));
+    await _applyPendingIce(from, pc);
     final answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     await _hub?.invoke('SendAnswer', args: [from, answer.toMap()]);
@@ -236,6 +329,7 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
     await pc.setRemoteDescription(
       RTCSessionDescription(answerMap['sdp'], answerMap['type']),
     );
+    await _applyPendingIce(from, pc);
   }
 
   Future<void> _onReceiveIce(List<Object?>? args) async {
@@ -244,13 +338,19 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
     final from = payload['from']?.toString();
     if (from == null) return;
     final candidateMap = Map<String, dynamic>.from(payload['candidate'] as Map);
+    final candidate = _parseIceCandidate(candidateMap);
+    if (candidate == null) return;
     final pc = _peers[from];
-    if (pc == null) return;
-    await pc.addCandidate(RTCIceCandidate(
-      candidateMap['candidate'],
-      candidateMap['sdpMid'],
-      candidateMap['sdpMLineIndex'],
-    ));
+    if (pc == null) {
+      _queueIce(from, candidate);
+      return;
+    }
+    final remoteDesc = await pc.getRemoteDescription();
+    if (remoteDesc == null) {
+      _queueIce(from, candidate);
+      return;
+    }
+    await pc.addCandidate(candidate);
   }
 
   void _onChat(List<Object?>? args) {
@@ -277,15 +377,155 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
   }
 
   Future<void> _toggleMic() async {
-    _micOn = !_micOn;
-    _localStream?.getAudioTracks().forEach((t) => t.enabled = _micOn);
+    final nextState = !_micOn;
+    if (nextState) {
+      final stream = _localStream;
+      if (stream == null) return;
+      final tracks = stream.getAudioTracks();
+      if (tracks.isEmpty) {
+        try {
+          final audioStream = await navigator.mediaDevices.getUserMedia({
+            'audio': true,
+            'video': false,
+          });
+          final audioTracks = audioStream.getAudioTracks();
+          if (audioTracks.isEmpty) return;
+          final track = audioTracks.first;
+          await stream.addTrack(track);
+          for (final pc in _peers.values) {
+            await pc.addTrack(track, stream);
+          }
+        } catch (error) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Không thể bật micro: $error')),
+          );
+          return;
+        }
+      } else {
+        for (final t in tracks) {
+          t.enabled = true;
+        }
+      }
+      _micOn = true;
+    } else {
+      for (final t in _localStream?.getAudioTracks() ?? []) {
+        t.enabled = false;
+      }
+      _micOn = false;
+    }
     setState(() {});
   }
 
   Future<void> _toggleCam() async {
-    _camOn = !_camOn;
-    _localStream?.getVideoTracks().forEach((t) => t.enabled = _camOn);
+    final nextState = !_camOn;
+    if (nextState) {
+      final stream = _localStream;
+      if (stream == null) return;
+      _localRenderer.srcObject ??= stream;
+      final tracks = stream.getVideoTracks();
+      if (tracks.isEmpty) {
+        try {
+          final videoStream = await navigator.mediaDevices.getUserMedia({
+            'audio': false,
+            'video': {
+              'facingMode': 'user',
+            },
+          });
+          final videoTracks = videoStream.getVideoTracks();
+          if (videoTracks.isEmpty) return;
+          final track = videoTracks.first;
+          await stream.addTrack(track);
+          for (final pc in _peers.values) {
+            await pc.addTrack(track, stream);
+          }
+        } catch (error) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Không thể bật camera: $error')),
+          );
+          return;
+        }
+      } else {
+        for (final t in tracks) {
+          t.enabled = true;
+        }
+      }
+      _camOn = true;
+    } else {
+      for (final t in _localStream?.getVideoTracks() ?? []) {
+        t.enabled = false;
+      }
+      _camOn = false;
+    }
     setState(() {});
+  }
+
+  Future<_MediaPreferences?> _askMediaPrefs() async {
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return null;
+    var micOn = true;
+    var camOn = true;
+    var receiveVideo = true;
+    return showDialog<_MediaPreferences>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.25),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Vào phòng học'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Mở micro'),
+                    value: micOn,
+                    onChanged: (value) {
+                      setDialogState(() => micOn = value);
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Mở camera'),
+                    value: camOn,
+                    onChanged: (value) {
+                      setDialogState(() => camOn = value);
+                    },
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Nhận video'),
+                    value: receiveVideo,
+                    onChanged: (value) {
+                      setDialogState(() => receiveVideo = value);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Thoát'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(
+                    _MediaPreferences(
+                      micOn: micOn,
+                      camOn: camOn,
+                      receiveVideo: receiveVideo,
+                    ),
+                  ),
+                  child: const Text('Vào phòng'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _toggleShare() async {
@@ -368,6 +608,36 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
     }
   }
 
+  RTCIceCandidate? _parseIceCandidate(Map<String, dynamic> data) {
+    final candidate = data['candidate']?.toString();
+    if (candidate == null || candidate.isEmpty) return null;
+    final sdpMid = data['sdpMid']?.toString();
+    final rawIndex = data['sdpMLineIndex'];
+    int? sdpMLineIndex;
+    if (rawIndex is int) {
+      sdpMLineIndex = rawIndex;
+    } else if (rawIndex is double) {
+      sdpMLineIndex = rawIndex.toInt();
+    } else if (rawIndex != null) {
+      sdpMLineIndex = int.tryParse(rawIndex.toString());
+    }
+    if (sdpMLineIndex == null) return null;
+    return RTCIceCandidate(candidate, sdpMid, sdpMLineIndex);
+  }
+
+  void _queueIce(String from, RTCIceCandidate candidate) {
+    final queue = _pendingIce.putIfAbsent(from, () => []);
+    queue.add(candidate);
+  }
+
+  Future<void> _applyPendingIce(String from, RTCPeerConnection pc) async {
+    final pending = _pendingIce.remove(from);
+    if (pending == null || pending.isEmpty) return;
+    for (final candidate in pending) {
+      await pc.addCandidate(candidate);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final remoteTiles = _remoteRenderers.entries.toList();
@@ -415,7 +685,8 @@ class _MeetingRoomPageState extends ConsumerState<MeetingRoomPage> {
     final crossAxis = others.length <= 1 ? 1 : 2;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1220),
+      backgroundColor:
+          _connecting ? Theme.of(context).colorScheme.surface : const Color(0xFF0B1220),
       body: SafeArea(
         child: _connecting
             ? const Center(child: CircularProgressIndicator())
@@ -1188,6 +1459,18 @@ class _ChatMessage {
   final String userName;
   final String message;
   final DateTime sentAt;
+}
+
+class _MediaPreferences {
+  const _MediaPreferences({
+    required this.micOn,
+    required this.camOn,
+    required this.receiveVideo,
+  });
+
+  final bool micOn;
+  final bool camOn;
+  final bool receiveVideo;
 }
 
 class _Participant {
